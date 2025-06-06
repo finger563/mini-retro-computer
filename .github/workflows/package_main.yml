@@ -26,15 +26,11 @@ jobs:
         esp_idf_version: release-v5.4
         path: '.'
         command: 'idf.py build'
-        # TODO: set the target here to be the chip you are building for
-        # target: esp32s3
+        target: esp32s3
 
     - name: Upload Build Outputs
       uses: actions/upload-artifact@v4
       id: zip_step
-      # TODO: add / remove files below. You may want to include for example
-      # littlefs-flash_args if you have a littlefs filesystem image you want to
-      # include
       with:
         name: build-artifacts
         path: |
@@ -48,9 +44,6 @@ jobs:
     - name: Attach files to release
       uses: softprops/action-gh-release@v2
       if: ${{ github.event.release && github.event.action == 'published' }}
-      # TODO: add / remove files below. You may want to include for example
-      # littlefs-flash_args if you have a littlefs filesystem image you want to
-      # include
       with:
         files: |
           build/*.bin
@@ -71,5 +64,4 @@ jobs:
       - uses: esp-cpp/esp-packaged-programmer-action@v1.0.5
         with:
           zipfile-id: ${{ needs.build.outputs.zipfile-id }}
-          # TODO: update programmer name to be what you want to call it
-          programmer-name: 'your_programmer'
+          programmer-name: 'mini-retro-computer_programmer'

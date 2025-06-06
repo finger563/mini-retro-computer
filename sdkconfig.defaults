@@ -1,23 +1,28 @@
-# TODO: uncomment one of these if you want to support a specifc target by default
-# CONFIG_IDF_TARGET="esp32"
-# CONFIG_IDF_TARGET="esp32s2"
-# CONFIG_IDF_TARGET="esp32s3"
-# CONFIG_IDF_TARGET="esp32c3"
+CONFIG_IDF_TARGET="esp32s3"
 
-# TODO: uncomment if you want freertos to run at 1 khz instead of the default 100 hz
-# CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_HZ=1000
 
-# TODO: uncomment if you want to run the esp at max clock speed (240 mhz)
 # ESP32-specific
 #
-# CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
-# CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
 
-# TODO: uncomment if you want to update the event and main task stask sizes
 # Common ESP-related
 #
-# CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
-# CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 
-# TODO: uncomment if you want to enable exceptions (which may be needed by certain components such as cli)
-# CONFIG_COMPILER_CXX_EXCEPTIONS=y
+#
+# LVGL configuration - # Monitoring
+#
+CONFIG_LV_USE_PERF_MONITOR=y
+CONFIG_LV_USE_MEM_MONITOR=y
+
+#
+# LVGL configuration - # Themes
+#
+CONFIG_LV_USE_THEME_DEFAULT=y
+CONFIG_LV_THEME_DEFAULT_DARK=y
+CONFIG_LV_THEME_DEFAULT_GROW=y
+CONFIG_LV_THEME_DEFAULT_TRANSITION_TIME=80
+CONFIG_LV_MEM_SIZE_KILOBYTES=64
