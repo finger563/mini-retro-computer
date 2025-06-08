@@ -1,6 +1,8 @@
 #include <chrono>
 #include <thread>
 
+#include "gui.hpp"
+
 #include "byte90.hpp"
 #include "logger.hpp"
 #include "task.hpp"
@@ -57,6 +59,9 @@ extern "C" void app_main(void) {
     }
   };
   byte90.initialize_button(on_button_pressed);
+
+  // now initialize the GUI
+  [[maybe_unused]] Gui gui({});
 
   // also print in the main thread
   while (true) {
