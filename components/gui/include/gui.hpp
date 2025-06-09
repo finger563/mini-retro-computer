@@ -76,7 +76,8 @@ protected:
   // Matrix rain state
   struct MatrixRainColumn {
     lv_obj_t *container{nullptr};
-    lv_obj_t *label{nullptr};
+    lv_obj_t *tail_label{nullptr};
+    lv_obj_t *head_label{nullptr};
     enum class State { WAITING, RAINING } state{State::WAITING};
     uint32_t timer{0};
     float rain_speed{1.0f};

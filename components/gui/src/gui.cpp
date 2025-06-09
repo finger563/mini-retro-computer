@@ -47,8 +47,10 @@ void Gui::init_ui() {
 
   // Remove any old matrix rain containers/labels
   for (auto &col : matrix_rain_columns_) {
-    if (col.label)
-      lv_obj_del(col.label);
+    if (col.tail_label)
+      lv_obj_del(col.tail_label);
+    if (col.head_label)
+      lv_obj_del(col.head_label);
     if (col.container)
       lv_obj_del(col.container);
   }
@@ -93,15 +95,27 @@ void Gui::init_ui() {
     lv_obj_set_style_pad_all(col.container, 0, 0);
     lv_obj_set_style_pad_row(col.container, 0, 0);
     lv_obj_set_style_pad_column(col.container, 0, 0);
-    col.label = lv_label_create(col.container);
-    lv_obj_set_width(col.label, matrix_char_width_);
-    lv_obj_set_height(col.label, col_length * matrix_char_height_);
-    lv_label_set_long_mode(col.label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(col.label, &unscii_8_jp, 0);
-    lv_obj_set_style_text_color(col.label, lv_color_hex(0x00FF00), 0);
-    lv_obj_set_style_bg_opa(col.label, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(col.label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(col.label, 0, -col_length * matrix_char_height_); // start above
+    // Create tail label (all but last char)
+    col.tail_label = lv_label_create(col.container);
+    lv_obj_set_width(col.tail_label, matrix_char_width_);
+    lv_obj_set_height(col.tail_label, (col_length - 1) * matrix_char_height_);
+    lv_label_set_long_mode(col.tail_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(col.tail_label, &unscii_8_jp, 0);
+    lv_obj_set_style_text_color(col.tail_label, lv_color_hex(0x00FF00), 0);
+    lv_obj_set_style_bg_opa(col.tail_label, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_text_align(col.tail_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(col.tail_label, 0, -col_length * matrix_char_height_); // start above
+    // Create head label (last char)
+    col.head_label = lv_label_create(col.container);
+    lv_obj_set_width(col.head_label, matrix_char_width_);
+    lv_obj_set_height(col.head_label, matrix_char_height_);
+    lv_label_set_long_mode(col.head_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(col.head_label, &unscii_8_jp, 0);
+    lv_obj_set_style_text_color(col.head_label, lv_color_hex(0xB6FF00), 0); // bright green
+    lv_obj_set_style_bg_opa(col.head_label, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_text_align(col.head_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(col.head_label, 0,
+                   -col_length * matrix_char_height_ + (col_length - 1) * matrix_char_height_);
     col.state = MatrixRainColumn::State::WAITING;
     col.timer = lv_tick_get() + (rand() % 1200);
     col.chars.clear();
@@ -229,16 +243,19 @@ void Gui::update() {
       if (col.state == MatrixRainColumn::State::WAITING) {
         if (now >= col.timer) {
           col.state = MatrixRainColumn::State::RAINING;
-          // Randomize chars and speed and col_length
+          // Randomize chars, speed, and col_length
           col.chars.clear();
           int new_col_length = 3 + (rand() % 2);
-          lv_obj_set_height(col.label, new_col_length * matrix_char_height_);
-          for (int t = 0; t < new_col_length - 1; ++t)
+          lv_obj_set_height(col.tail_label, (new_col_length - 1) * matrix_char_height_);
+          lv_obj_set_height(col.head_label, matrix_char_height_);
+          for (int t = 0; t < new_col_length; ++t)
             col.chars.push_back(random_katakana());
-          col.chars.push_back(' ');
           col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
           progress[i] = 0.0f;
-          lv_obj_set_pos(col.label, 0, -new_col_length * matrix_char_height_);
+          lv_obj_set_pos(col.tail_label, 0, -new_col_length * matrix_char_height_);
+          lv_obj_set_pos(col.head_label, 0,
+                         -new_col_length * matrix_char_height_ +
+                             (new_col_length - 1) * matrix_char_height_);
           col.timer = now;
         }
         continue;
@@ -246,26 +263,36 @@ void Gui::update() {
       if (col.state == MatrixRainColumn::State::RAINING) {
         progress[i] += col.rain_speed;
         // Randomize characters as the drop falls
-        for (size_t t = 0; t < col.chars.size() - 1; ++t) {
-          if ((rand() % 4) == 0) { // 25% chance to change per update
+        for (size_t t = 0; t < col.chars.size(); ++t) {
+          if ((rand() % 4) == 0) {
             col.chars[t] = random_katakana();
           }
         }
-        // Update label text
-        std::string text;
-        for (auto ch : col.chars) {
+        // Update tail label text (all but last char)
+        std::string tail_text;
+        for (size_t j = 0; j < col.chars.size() - 1; ++j) {
           char utf8[5] = {0};
-          unicode_to_utf8(ch, utf8);
-          text += utf8;
-          text += "\n";
+          unicode_to_utf8(col.chars[j], utf8);
+          tail_text += utf8;
+          tail_text += "\n";
         }
-        lv_label_set_text(col.label, text.c_str());
+        lv_label_set_text(col.tail_label, tail_text.c_str());
+        // Update head label text (last char)
+        char head_utf8[5] = {0};
+        unicode_to_utf8(col.chars.back(), head_utf8);
+        lv_label_set_text(col.head_label, head_utf8);
+        // Move both labels
         int y = -label_height + (int)progress[i];
-        lv_obj_set_y(col.label, y);
+        lv_obj_set_y(col.tail_label, y);
+        lv_obj_set_y(col.head_label, y + (col.chars.size() - 1) * matrix_char_height_);
         if (y >= screen_h) {
+          // Set head to space when resetting
+          col.chars.back() = ' ';
           col.state = MatrixRainColumn::State::WAITING;
           col.timer = now + 200 + (rand() % 1200);
-          lv_obj_set_y(col.label, -label_height);
+          lv_obj_set_y(col.tail_label, -label_height);
+          lv_obj_set_y(col.head_label,
+                       -label_height + (col.chars.size() - 1) * matrix_char_height_);
         }
       }
     }
