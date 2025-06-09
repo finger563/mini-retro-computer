@@ -74,16 +74,20 @@ protected:
   uint32_t matrix_rain_start_time_{0};
 
   // Matrix rain state
-  struct MatrixColumn {
+  struct MatrixChar {
     int y;
+    uint32_t unicode;
+  };
+  struct MatrixColumn {
+    std::vector<MatrixChar> trail;
     int speed;
-    char current_char;
   };
   std::vector<MatrixColumn> matrix_columns_;
   int matrix_char_height_{8};
   int matrix_char_width_{8};
   int matrix_cols_{0};
   int matrix_rows_{0};
+  int trail_length_{6}; // Default trail length, can be made configurable
 
   // LVGL object pointers
   lv_obj_t *boot_terminal_label_{nullptr};
