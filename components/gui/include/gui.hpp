@@ -74,29 +74,32 @@ protected:
   uint32_t matrix_rain_start_time_{0};
 
   // Matrix rain state
-  struct MatrixChar {
-    int y;
-    uint32_t unicode;
+  struct MatrixRainColumn {
+    lv_obj_t *container{nullptr};
+    lv_obj_t *label{nullptr};
+    enum class State { WAITING, RAINING } state{State::WAITING};
+    uint32_t timer{0};
+    float rain_speed{1.0f};
+    std::vector<uint32_t> chars;
   };
-  struct MatrixColumn {
-    std::vector<MatrixChar> trail;
-    int speed;
-  };
-  std::vector<MatrixColumn> matrix_columns_;
+  std::vector<MatrixRainColumn> matrix_rain_columns_;
   int matrix_char_height_{8};
   int matrix_char_width_{8};
   int matrix_cols_{0};
   int matrix_rows_{0};
-  int trail_length_{6}; // Default trail length, can be made configurable
+  uint32_t matrix_rain_last_update_{0};
+  uint32_t matrix_rain_update_interval_{40}; // ms, how often to animate rain
+  int matrix_rain_head_glow_length_{2};      // number of spans for the head glow
 
   // LVGL object pointers
   lv_obj_t *boot_terminal_label_{nullptr};
-  std::vector<lv_obj_t *> matrix_rain_labels_;
 
   // LVGL styles
   lv_style_t style_green_text_;
   lv_style_t style_matrix_rain_;
+  lv_style_t style_matrix_head_;
   bool style_matrix_rain_init_{false};
+  bool style_matrix_head_init_{false};
 
   void draw_boot_screen();
   void draw_terminal();
@@ -146,4 +149,16 @@ protected:
   std::recursive_mutex mutex_;
 
   uint32_t matrix_rain_speed_{1};
+
+  // Test: single spangroup for smooth vertical scroll experiment
+  lv_obj_t *test_spangroup_{nullptr};
+  std::vector<lv_span_t *> test_spans_;
+  int test_span_count_{16};
+  float test_head_pos_{0.0f};     // head position in pixels
+  float test_scroll_speed_{1.2f}; // pixels per update
+  uint32_t test_last_scroll_{0};
+  uint32_t test_scroll_interval_{16}; // ms (about 60 FPS)
+
+  static uint32_t random_katakana();
+  static void unicode_to_utf8(uint32_t unicode, char *utf8);
 };

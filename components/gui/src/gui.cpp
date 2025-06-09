@@ -7,6 +7,26 @@ extern "C" {
 extern const lv_font_t unscii_8_jp;
 }
 
+// Add helpers for Katakana and UTF-8
+uint32_t Gui::random_katakana() { return 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1)); }
+void Gui::unicode_to_utf8(uint32_t unicode, char *utf8) {
+  if (unicode < 0x80)
+    utf8[0] = unicode;
+  else if (unicode < 0x800) {
+    utf8[0] = 0xC0 | (unicode >> 6);
+    utf8[1] = 0x80 | (unicode & 0x3F);
+  } else if (unicode < 0x10000) {
+    utf8[0] = 0xE0 | (unicode >> 12);
+    utf8[1] = 0x80 | ((unicode >> 6) & 0x3F);
+    utf8[2] = 0x80 | (unicode & 0x3F);
+  } else {
+    utf8[0] = 0xF0 | (unicode >> 18);
+    utf8[1] = 0x80 | ((unicode >> 12) & 0x3F);
+    utf8[2] = 0x80 | ((unicode >> 6) & 0x3F);
+    utf8[3] = 0x80 | (unicode & 0x3F);
+  }
+}
+
 void Gui::deinit_ui() {
   logger_.info("Deinitializing UI");
   // Delete boot/terminal label if present
@@ -14,15 +34,26 @@ void Gui::deinit_ui() {
     lv_obj_del(boot_terminal_label_);
     boot_terminal_label_ = nullptr;
   }
-  // Delete matrix rain labels if present
-  for (auto *lbl : matrix_rain_labels_) {
-    lv_obj_del(lbl);
-  }
-  matrix_rain_labels_.clear();
 }
 
 void Gui::init_ui() {
   logger_.info("Initializing UI");
+  // Remove any old test spangroup
+  if (test_spangroup_) {
+    lv_obj_del(test_spangroup_);
+    test_spangroup_ = nullptr;
+  }
+  test_spans_.clear();
+
+  // Remove any old matrix rain containers/labels
+  for (auto &col : matrix_rain_columns_) {
+    if (col.label)
+      lv_obj_del(col.label);
+    if (col.container)
+      lv_obj_del(col.container);
+  }
+  matrix_rain_columns_.clear();
+
   // Set up green-on-black style
   lv_style_init(&style_green_text_);
   lv_style_set_text_color(&style_green_text_, lv_color_hex(0x00FF00));
@@ -30,24 +61,56 @@ void Gui::init_ui() {
   lv_style_set_bg_opa(&style_green_text_, LV_OPA_COVER);
   lv_style_set_text_font(&style_green_text_, &unscii_8_jp);
 
+  // Set up head style
+  if (!style_matrix_head_init_) {
+    lv_style_init(&style_matrix_head_);
+    lv_style_set_text_color(&style_matrix_head_, lv_color_hex(0xB6FF00));
+    lv_style_set_bg_opa(&style_matrix_head_, LV_OPA_TRANSP);
+    lv_style_set_text_font(&style_matrix_head_, &unscii_8_jp);
+    style_matrix_head_init_ = true;
+  }
+
   // Set background of main screen to black and hide scrollbars
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, 0);
-  lv_obj_clear_flag(lv_screen_active(), LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(lv_screen_active(), LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
-  lv_obj_clear_flag(lv_screen_active(), LV_OBJ_FLAG_SCROLL_CHAIN_VER);
   lv_obj_set_scrollbar_mode(lv_screen_active(), LV_SCROLLBAR_MODE_OFF);
 
-  // Create the boot/terminal label
-  boot_terminal_label_ = lv_label_create(lv_screen_active());
-  lv_label_set_long_mode(boot_terminal_label_, LV_LABEL_LONG_WRAP);
-  lv_obj_align(boot_terminal_label_, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_set_style_text_align(boot_terminal_label_, LV_TEXT_ALIGN_LEFT, 0);
-  lv_obj_set_width(boot_terminal_label_, 128);  // full width
-  lv_obj_set_height(boot_terminal_label_, 128); // full width
-  lv_obj_add_style(boot_terminal_label_, &style_green_text_, 0);
-  lv_obj_clear_flag(boot_terminal_label_, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_scrollbar_mode(boot_terminal_label_, LV_SCROLLBAR_MODE_OFF);
+  // Matrix rain: container+label per column
+  matrix_cols_ = 128 / matrix_char_width_;
+  int screen_h = 128;
+  for (int x = 0; x < matrix_cols_; ++x) {
+    MatrixRainColumn col;
+    int col_length = 3 + (rand() % 2); // 3 or 4 chars per drop
+    col.container = lv_obj_create(lv_screen_active());
+    lv_obj_set_size(col.container, matrix_char_width_, screen_h);
+    lv_obj_set_pos(col.container, x * matrix_char_width_, 0);
+    lv_obj_set_scrollbar_mode(col.container, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_bg_opa(col.container, LV_OPA_TRANSP, 0);
+    lv_obj_clear_flag(col.container, LV_OBJ_FLAG_SCROLLABLE);
+    // Remove border and padding
+    lv_obj_set_style_border_width(col.container, 0, 0);
+    lv_obj_set_style_pad_all(col.container, 0, 0);
+    lv_obj_set_style_pad_row(col.container, 0, 0);
+    lv_obj_set_style_pad_column(col.container, 0, 0);
+    col.label = lv_label_create(col.container);
+    lv_obj_set_width(col.label, matrix_char_width_);
+    lv_obj_set_height(col.label, col_length * matrix_char_height_);
+    lv_label_set_long_mode(col.label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(col.label, &unscii_8_jp, 0);
+    lv_obj_set_style_text_color(col.label, lv_color_hex(0x00FF00), 0);
+    lv_obj_set_style_bg_opa(col.label, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_text_align(col.label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(col.label, 0, -col_length * matrix_char_height_); // start above
+    col.state = MatrixRainColumn::State::WAITING;
+    col.timer = lv_tick_get() + (rand() % 1200);
+    col.chars.clear();
+    for (int t = 0; t < col_length - 1; ++t)
+      col.chars.push_back(random_katakana());
+    col.chars.push_back(' '); // last char is space
+    col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
+    matrix_rain_columns_.push_back(col);
+  }
 }
 
 void Gui::on_value_changed(lv_event_t *e) {
@@ -78,6 +141,55 @@ void Gui::update() {
   std::lock_guard<std::recursive_mutex> lk(mutex_);
 
   uint32_t now = lv_tick_get();
+  int screen_h = 128;
+
+  // TEST: Smooth scroll the test spangroup
+  if (test_spangroup_) {
+    if (now - test_last_scroll_ > test_scroll_interval_) {
+      test_head_pos_ += test_scroll_speed_;
+      lv_obj_scroll_to_y(test_spangroup_, (int)test_head_pos_, LV_ANIM_ON);
+      // Update span colors for glow effect
+      for (int i = 0; i < test_span_count_; ++i) {
+        float span_y = i * matrix_char_height_;
+        float dist = fabsf((test_head_pos_ + 64) - span_y); // +64 to center head in view
+        lv_style_t *style = lv_span_get_style(test_spans_[i]);
+        if (dist < matrix_char_height_ * 1.2f) {
+          lv_style_set_text_color(style, lv_color_hex(0xB6FF00)); // head
+        } else if (dist < matrix_char_height_ * 2.5f) {
+          lv_style_set_text_color(style, lv_color_hex(0x55FF55)); // glow
+        } else {
+          lv_style_set_text_color(style, lv_color_hex(0x00FF00)); // tail
+        }
+      }
+      // If head is off the bottom, reset
+      if (test_head_pos_ > (test_span_count_ * matrix_char_height_ + 128)) {
+        test_head_pos_ = 0.0f;
+        lv_obj_scroll_to_y(test_spangroup_, 0, LV_ANIM_OFF);
+        // Randomize chars
+        for (auto *span : test_spans_) {
+          uint32_t unicode = 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1));
+          char utf8[5] = {0};
+          if (unicode < 0x80)
+            utf8[0] = unicode;
+          else if (unicode < 0x800) {
+            utf8[0] = 0xC0 | (unicode >> 6);
+            utf8[1] = 0x80 | (unicode & 0x3F);
+          } else if (unicode < 0x10000) {
+            utf8[0] = 0xE0 | (unicode >> 12);
+            utf8[1] = 0x80 | ((unicode >> 6) & 0x3F);
+            utf8[2] = 0x80 | (unicode & 0x3F);
+          } else {
+            utf8[0] = 0xF0 | (unicode >> 18);
+            utf8[1] = 0x80 | ((unicode >> 12) & 0x3F);
+            utf8[2] = 0x80 | ((unicode >> 6) & 0x3F);
+            utf8[3] = 0x80 | (unicode & 0x3F);
+          }
+          lv_span_set_text(span, utf8);
+        }
+      }
+      test_last_scroll_ = now;
+    }
+  }
 
   switch (mode_) {
   case Mode::BOOT:
@@ -99,27 +211,64 @@ void Gui::update() {
       // Go to matrix rain
       mode_ = Mode::MATRIX_RAIN;
       matrix_rain_start_time_ = now;
-      // Initialize matrix rain columns
-      matrix_cols_ = 128 / matrix_char_width_;
-      matrix_rows_ = 128 / matrix_char_height_;
-      matrix_columns_.clear();
-      for (int i = 0; i < matrix_cols_; ++i) {
-        MatrixColumn col;
-        int start_y = rand() % matrix_rows_;
-        for (int t = 0; t < trail_length_; ++t) {
-          MatrixChar mc;
-          mc.y = (start_y - t + matrix_rows_) % matrix_rows_;
-          mc.unicode = 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1));
-          col.trail.push_back(mc);
-        }
-        col.speed = 1 + rand() % 3;
-        matrix_columns_.push_back(col);
+      // Remove boot/terminal label
+      if (boot_terminal_label_) {
+        lv_obj_del(boot_terminal_label_);
+        boot_terminal_label_ = nullptr;
       }
     }
     break;
   case Mode::MATRIX_RAIN:
-    advance_matrix_rain();
-    draw_matrix_rain();
+    static std::vector<float> progress;
+    if (progress.size() != matrix_rain_columns_.size())
+      progress.resize(matrix_rain_columns_.size(), 0.0f);
+    for (size_t i = 0; i < matrix_rain_columns_.size(); ++i) {
+      auto &col = matrix_rain_columns_[i];
+      int col_length = col.chars.size();
+      int label_height = col_length * matrix_char_height_;
+      if (col.state == MatrixRainColumn::State::WAITING) {
+        if (now >= col.timer) {
+          col.state = MatrixRainColumn::State::RAINING;
+          // Randomize chars and speed and col_length
+          col.chars.clear();
+          int new_col_length = 3 + (rand() % 2);
+          lv_obj_set_height(col.label, new_col_length * matrix_char_height_);
+          for (int t = 0; t < new_col_length - 1; ++t)
+            col.chars.push_back(random_katakana());
+          col.chars.push_back(' ');
+          col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
+          progress[i] = 0.0f;
+          lv_obj_set_pos(col.label, 0, -new_col_length * matrix_char_height_);
+          col.timer = now;
+        }
+        continue;
+      }
+      if (col.state == MatrixRainColumn::State::RAINING) {
+        progress[i] += col.rain_speed;
+        // Randomize characters as the drop falls
+        for (size_t t = 0; t < col.chars.size() - 1; ++t) {
+          if ((rand() % 4) == 0) { // 25% chance to change per update
+            col.chars[t] = random_katakana();
+          }
+        }
+        // Update label text
+        std::string text;
+        for (auto ch : col.chars) {
+          char utf8[5] = {0};
+          unicode_to_utf8(ch, utf8);
+          text += utf8;
+          text += "\n";
+        }
+        lv_label_set_text(col.label, text.c_str());
+        int y = -label_height + (int)progress[i];
+        lv_obj_set_y(col.label, y);
+        if (y >= screen_h) {
+          col.state = MatrixRainColumn::State::WAITING;
+          col.timer = now + 200 + (rand() % 1200);
+          lv_obj_set_y(col.label, -label_height);
+        }
+      }
+    }
     break;
   }
 
@@ -153,96 +302,4 @@ void Gui::draw_terminal() {
   lv_label_set_text(boot_terminal_label_, text.c_str());
   // Scroll to bottom if needed
   lv_obj_scroll_to_y(boot_terminal_label_, lv_obj_get_height(boot_terminal_label_), LV_ANIM_OFF);
-}
-
-void Gui::advance_matrix_rain() {
-  // Move each column's drop down, randomize char (Japanese Katakana)
-  for (auto &col : matrix_columns_) {
-    if (col.trail.empty()) {
-      // Initialize trail
-      int start_y = rand() % matrix_rows_;
-      for (int t = 0; t < trail_length_; ++t) {
-        MatrixChar mc;
-        mc.y = (start_y - t + matrix_rows_) % matrix_rows_;
-        mc.unicode = 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1));
-        col.trail.push_back(mc);
-      }
-    } else {
-      // Move trail down
-      for (auto &mc : col.trail) {
-        mc.y = (mc.y + 1) % matrix_rows_;
-      }
-      // Add new head
-      MatrixChar head;
-      head.y = (col.trail.front().y + 1) % matrix_rows_;
-      head.unicode = 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1));
-      col.trail.insert(col.trail.begin(), head);
-      // Trim trail
-      if ((int)col.trail.size() > trail_length_)
-        col.trail.pop_back();
-    }
-  }
-}
-
-void Gui::draw_matrix_rain() {
-  // Remove boot/terminal label if present
-  if (boot_terminal_label_) {
-    lv_obj_del(boot_terminal_label_);
-    boot_terminal_label_ = nullptr;
-  }
-  // Remove old rain labels
-  for (auto *lbl : matrix_rain_labels_) {
-    lv_obj_del(lbl);
-  }
-  matrix_rain_labels_.clear();
-  // Initialize style if needed
-  if (!style_matrix_rain_init_) {
-    lv_style_init(&style_matrix_rain_);
-    lv_style_set_text_color(&style_matrix_rain_, lv_color_hex(0x00FF00));
-    lv_style_set_bg_opa(&style_matrix_rain_, LV_OPA_TRANSP);
-    lv_style_set_text_font(&style_matrix_rain_, &unscii_8_jp);
-    style_matrix_rain_init_ = true;
-  }
-  // Brighter style for head
-  static lv_style_t style_matrix_head;
-  static bool style_head_init = false;
-  if (!style_head_init) {
-    lv_style_init(&style_matrix_head);
-    lv_style_set_text_color(&style_matrix_head, lv_color_hex(0xB6FF00));
-    lv_style_set_bg_opa(&style_matrix_head, LV_OPA_TRANSP);
-    lv_style_set_text_font(&style_matrix_head, &unscii_8_jp);
-    style_head_init = true;
-  }
-  // Draw all trail chars for each column
-  for (int x = 0; x < matrix_cols_; ++x) {
-    const auto &col = matrix_columns_[x];
-    for (size_t t = 0; t < col.trail.size(); ++t) {
-      const auto &mc = col.trail[t];
-      lv_obj_t *lbl = lv_label_create(lv_screen_active());
-      char utf8[5] = {0};
-      if (mc.unicode < 0x80) {
-        utf8[0] = mc.unicode;
-      } else if (mc.unicode < 0x800) {
-        utf8[0] = 0xC0 | (mc.unicode >> 6);
-        utf8[1] = 0x80 | (mc.unicode & 0x3F);
-      } else if (mc.unicode < 0x10000) {
-        utf8[0] = 0xE0 | (mc.unicode >> 12);
-        utf8[1] = 0x80 | ((mc.unicode >> 6) & 0x3F);
-        utf8[2] = 0x80 | (mc.unicode & 0x3F);
-      } else {
-        utf8[0] = 0xF0 | (mc.unicode >> 18);
-        utf8[1] = 0x80 | ((mc.unicode >> 12) & 0x3F);
-        utf8[2] = 0x80 | ((mc.unicode >> 6) & 0x3F);
-        utf8[3] = 0x80 | (mc.unicode & 0x3F);
-      }
-      lv_label_set_text(lbl, utf8);
-      lv_obj_set_pos(lbl, x * matrix_char_width_, mc.y * matrix_char_height_);
-      if (t == 0) {
-        lv_obj_add_style(lbl, &style_matrix_head, 0);
-      } else {
-        lv_obj_add_style(lbl, &style_matrix_rain_, 0);
-      }
-      matrix_rain_labels_.push_back(lbl);
-    }
-  }
 }
