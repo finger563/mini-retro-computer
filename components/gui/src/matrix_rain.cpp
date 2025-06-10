@@ -128,7 +128,7 @@ void MatrixRain::restart() {
 }
 
 void MatrixRain::update() {
-  uint32_t now = lv_tick_get();
+  [[maybe_unused]] uint32_t now = lv_tick_get();
   for (auto &col : columns_) {
     update_column(col);
   }
@@ -173,7 +173,6 @@ void MatrixRain::start_column(Column &col) {
 
 void MatrixRain::update_column(Column &col) {
   uint32_t now = lv_tick_get();
-  int col_length = col.chars.size();
   if (col.state == Column::State::WAITING) {
     if (now >= col.timer) {
       col.state = Column::State::RAINING;

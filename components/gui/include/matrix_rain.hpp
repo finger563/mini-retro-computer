@@ -17,7 +17,7 @@ public:
     int update_interval_ms = 40;
   };
 
-  MatrixRain(const Config &config);
+  explicit MatrixRain(const Config &config);
   ~MatrixRain();
 
   void init(lv_obj_t *parent);
@@ -26,7 +26,7 @@ public:
   void restart();
   void set_font(const lv_font_t *font);
   void set_visible(bool visible);
-  void set_prompt(const char *text); // Show a label at the top (optional)
+  void set_prompt(const char *text); // Show a label behind the rain (optional)
 
 private:
   struct Column {

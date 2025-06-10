@@ -198,20 +198,15 @@ void Gui::update() {
     if (terminal_)
       terminal_->update();
     // Animate typing the terminal prompt with per-line delay
-    static uint32_t last_char_time = 0;
-    static size_t last_newline = 0;
     if (terminal_prompt_chars_shown_ < terminal_prompt_.size()) {
-      if (terminal_prompt_[terminal_prompt_chars_shown_] == '\n') {
-        last_newline = terminal_prompt_chars_shown_;
-      }
       uint32_t delay = 60;
       if (terminal_prompt_[terminal_prompt_chars_shown_] == '\n')
         delay = 600; // longer pause after each line
-      if (now - last_char_time > delay) {
+      if (now - last_char_time_ > delay) {
         if (terminal_)
           terminal_->kb_type(terminal_prompt_[terminal_prompt_chars_shown_]);
         terminal_prompt_chars_shown_++;
-        last_char_time = now;
+        last_char_time_ = now;
       }
     } else {
       // After a short pause, go to matrix rain
@@ -246,6 +241,7 @@ void Gui::restart() {
   terminal_start_time_ = 0;
   matrix_rain_start_time_ = 0;
   mode_ = Mode::BOOT;
+  last_char_time_ = 0;
   // Re-init UI and MatrixRain
   deinit_ui();
   init_ui();

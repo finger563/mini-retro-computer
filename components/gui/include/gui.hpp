@@ -96,13 +96,7 @@ protected:
   uint32_t terminal_start_time_{0};
   uint32_t terminal_duration_ms_{2000};
   uint32_t matrix_rain_start_time_{0};
-
-  // LVGL styles
-  lv_style_t style_green_text_;
-  lv_style_t style_matrix_rain_;
-  lv_style_t style_matrix_head_;
-  bool style_matrix_rain_init_{false};
-  bool style_matrix_head_init_{false};
+  uint32_t last_char_time_{0};
 
   void draw_boot_screen();
   void draw_terminal();

@@ -11,7 +11,7 @@ public:
     const lv_font_t *font = nullptr;
   };
 
-  Boot(const Config &config);
+  explicit Boot(const Config &config);
   ~Boot();
 
   void init(lv_obj_t *parent);
@@ -31,5 +31,4 @@ private:
   std::vector<std::string> lines_;
   bool fading_{false};
   bool visible_{true};
-  // ... dynamic/animated line state ...
 };

@@ -10,7 +10,7 @@ public:
     const lv_font_t *font = nullptr;
   };
 
-  Terminal(const Config &config);
+  explicit Terminal(const Config &config);
   ~Terminal();
 
   void init(lv_obj_t *parent);
@@ -32,5 +32,4 @@ private:
   std::string typed_;
   bool cursor_visible_{true};
   bool fading_{false};
-  // ... typing/blink state ...
 };
