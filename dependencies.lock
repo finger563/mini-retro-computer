@@ -24,7 +24,7 @@ dependencies:
       require: private
       version: '>=5.0'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.0.7
   espp/base_peripheral:
@@ -116,7 +116,7 @@ dependencies:
       require: private
       version: '>=9.2.2'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.0.7
   espp/display_drivers:
@@ -233,6 +233,20 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.0.7
+  espp/timer:
+    component_hash: bbdaf81bd5e8359675f22a4c221e21c47f8d3de0cfafb76c5ee3f4014e571378
+    dependencies:
+    - name: espp/task
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=1.0'
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.0.7
   idf:
     source:
       type: idf
@@ -245,9 +259,12 @@ dependencies:
       type: service
     version: 9.2.2
 direct_dependencies:
+- espp/base_component
 - espp/byte90
+- espp/display
 - espp/task
+- espp/timer
 - idf
-manifest_hash: da1dcf4b6b235b8f546080286cb17cc46bc82ad7421a6a58d6a94e8f4f0c112c
+manifest_hash: 056d57fef8168b07eff5520f47376af3a5cfaf13402bd1b422aa32a5d6cfdf62
 target: esp32s3
 version: 2.0.0
