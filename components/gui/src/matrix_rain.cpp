@@ -62,7 +62,7 @@ void MatrixRain::init(lv_obj_t *parent) {
     int col_length = config_.min_drop_length +
                      (rand() % (config_.max_drop_length - config_.min_drop_length + 1));
     col.container = lv_obj_create(parent_);
-    lv_obj_set_size(col.container, config_.char_width, config_.screen_height);
+    lv_obj_set_size(col.container, config_.char_width, config_.screen_height - 1);
     lv_obj_set_pos(col.container, x * config_.char_width, 0);
     lv_obj_set_scrollbar_mode(col.container, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_bg_opa(col.container, LV_OPA_TRANSP, 0);
@@ -148,7 +148,7 @@ void MatrixRain::start_column(Column &col) {
                  -col_length * config_.char_height + (col_length - 1) * config_.char_height);
   // Animate tail_label
   int start_y = -col_length * config_.char_height;
-  int end_y = config_.screen_height;
+  int end_y = config_.screen_height - 1;
   int duration_ms = (int)((end_y - start_y) / col.rain_speed * (update_interval_));
   lv_anim_t a;
   lv_anim_init(&a);
