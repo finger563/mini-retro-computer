@@ -235,7 +235,7 @@ void MatrixRain::anim_ready_cb(lv_anim_t *a) {
     col->chars.back() = ' ';
   col->state = Column::State::WAITING;
   col->timer = lv_tick_get() + 200 + (rand() % 1200);
-  int label_height = col->chars.size() * 8; // char_height
+  int label_height = col->chars.size() * config_.char_height; // char_height
   lv_obj_set_y(col->tail_label, -label_height);
-  lv_obj_set_y(col->head_label, -label_height + (col->chars.size() - 1) * 8);
+  lv_obj_set_y(col->head_label, -label_height + (col->chars.size() - 1) * config_.char_height);
 }
