@@ -234,7 +234,9 @@ void MatrixRain::anim_ready_cb(lv_anim_t *a) {
     col->chars.back() = ' ';
   col->state = Column::State::WAITING;
   col->timer = lv_tick_get() + 200 + (rand() % 1200);
-  int label_height = col->chars.size() * 8; // char_height
+  // get the height of the character from lvgl
+  int char_height = lv_font_get_line_height(lv_obj_get_style_text_font(col->tail_label, 0));
+  int label_height = col->chars.size() * char_height; // char_height
   lv_obj_set_y(col->tail_label, -label_height);
-  lv_obj_set_y(col->head_label, -label_height + (col->chars.size() - 1) * 8);
+  lv_obj_set_y(col->head_label, -label_height + (col->chars.size() - 1) * char_height);
 }
