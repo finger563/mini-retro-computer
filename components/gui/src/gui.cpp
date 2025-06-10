@@ -1,6 +1,10 @@
 #include "gui.hpp"
+#include "boot.hpp"
+#include "matrix_rain.hpp"
+#include "terminal.hpp"
 #include <cstdlib>
 #include <ctime>
+#include <functional>
 #include <lvgl.h>
 
 extern "C" {
@@ -29,112 +33,59 @@ void Gui::unicode_to_utf8(uint32_t unicode, char *utf8) {
 
 void Gui::deinit_ui() {
   logger_.info("Deinitializing UI");
-  for (auto *lbl : boot_terminal_labels_) {
-    if (lbl)
-      lv_obj_del(lbl);
+  if (boot_) {
+    boot_->deinit();
+    boot_.reset();
   }
-  boot_terminal_labels_.clear();
-  if (boot_terminal_container_) {
-    lv_obj_del(boot_terminal_container_);
-    boot_terminal_container_ = nullptr;
+  if (terminal_) {
+    terminal_->deinit();
+    terminal_.reset();
+  }
+  if (matrix_rain_) {
+    matrix_rain_->deinit();
+    matrix_rain_.reset();
   }
 }
 
 void Gui::init_ui() {
   logger_.info("Initializing UI");
-  // Remove any old matrix rain containers/labels
-  for (auto &col : matrix_rain_columns_) {
-    if (col.tail_label)
-      lv_obj_del(col.tail_label);
-    if (col.head_label)
-      lv_obj_del(col.head_label);
-    if (col.container)
-      lv_obj_del(col.container);
+  // Remove any old boot/terminal objects
+  if (boot_) {
+    boot_->deinit();
+    boot_.reset();
   }
-  matrix_rain_columns_.clear();
-
-  // Remove any old boot/terminal container/labels
-  for (auto *lbl : boot_terminal_labels_) {
-    if (lbl)
-      lv_obj_del(lbl);
+  if (terminal_) {
+    terminal_->deinit();
+    terminal_.reset();
   }
-  boot_terminal_labels_.clear();
-  if (boot_terminal_container_) {
-    lv_obj_del(boot_terminal_container_);
-    boot_terminal_container_ = nullptr;
-  }
-
-  // Set up green-on-black style
-  lv_style_init(&style_green_text_);
-  lv_style_set_text_color(&style_green_text_, lv_color_hex(0x00FF00));
-  lv_style_set_bg_color(&style_green_text_, lv_color_hex(0x000000));
-  lv_style_set_bg_opa(&style_green_text_, LV_OPA_COVER);
-  lv_style_set_text_font(&style_green_text_, &unscii_8_jp);
-
-  // Set background of main screen to black and hide scrollbars
-  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x000000), 0);
-  lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, 0);
-  lv_obj_clear_flag(lv_screen_active(), LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
-  lv_obj_set_scrollbar_mode(lv_screen_active(), LV_SCROLLBAR_MODE_OFF);
-
-  // Create scrollable container for boot/terminal display
-  boot_terminal_container_ = lv_obj_create(lv_screen_active());
-  lv_obj_set_width(boot_terminal_container_, 128);
-  lv_obj_set_scrollbar_mode(boot_terminal_container_, LV_SCROLLBAR_MODE_OFF);
-  lv_obj_set_style_bg_opa(boot_terminal_container_, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(boot_terminal_container_, 0, 0);
-  lv_obj_set_style_pad_all(boot_terminal_container_, 0, 0);
-  lv_obj_set_pos(boot_terminal_container_, 0, 0);
-  lv_obj_set_scroll_dir(boot_terminal_container_, LV_DIR_VER);
-  lv_obj_add_flag(boot_terminal_container_, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_flex_flow(boot_terminal_container_, LV_FLEX_FLOW_COLUMN);
-
-  // Matrix rain: container+label per column
-  matrix_cols_ = 128 / matrix_char_width_;
-  int screen_h = 128;
-  for (int x = 0; x < matrix_cols_; ++x) {
-    MatrixRainColumn col;
-    int col_length = matrix_rain_num_chars_ + (rand() % matrix_rain_num_chars_ / 2);
-    col.container = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(col.container, matrix_char_width_, screen_h);
-    lv_obj_set_pos(col.container, x * matrix_char_width_, 0);
-    lv_obj_set_scrollbar_mode(col.container, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_style_bg_opa(col.container, LV_OPA_TRANSP, 0);
-    lv_obj_clear_flag(col.container, LV_OBJ_FLAG_SCROLLABLE);
-    // Remove border and padding
-    lv_obj_set_style_border_width(col.container, 0, 0);
-    lv_obj_set_style_pad_all(col.container, 0, 0);
-    lv_obj_set_style_pad_row(col.container, 0, 0);
-    lv_obj_set_style_pad_column(col.container, 0, 0);
-    // Create tail label (all but last char)
-    col.tail_label = lv_label_create(col.container);
-    lv_obj_set_width(col.tail_label, matrix_char_width_);
-    lv_obj_set_height(col.tail_label, (col_length - 1) * matrix_char_height_);
-    lv_label_set_long_mode(col.tail_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(col.tail_label, &unscii_8_jp, 0);
-    lv_obj_set_style_text_color(col.tail_label, lv_color_hex(0x00FF00), 0);
-    lv_obj_set_style_bg_opa(col.tail_label, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(col.tail_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(col.tail_label, 0, -col_length * matrix_char_height_); // start above
-    // Create head label (last char)
-    col.head_label = lv_label_create(col.container);
-    lv_obj_set_width(col.head_label, matrix_char_width_);
-    lv_obj_set_height(col.head_label, matrix_char_height_);
-    lv_label_set_long_mode(col.head_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(col.head_label, &unscii_8_jp, 0);
-    lv_obj_set_style_text_color(col.head_label, lv_color_hex(0xB6FF00), 0); // bright green
-    lv_obj_set_style_bg_opa(col.head_label, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(col.head_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(col.head_label, 0,
-                   -col_length * matrix_char_height_ + (col_length - 1) * matrix_char_height_);
-    col.state = MatrixRainColumn::State::WAITING;
-    col.timer = lv_tick_get() + (rand() % 1200);
-    col.chars.clear();
-    for (int t = 0; t < col_length; ++t)
-      col.chars.push_back(random_katakana());
-    col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
-    matrix_rain_columns_.push_back(col);
-  }
+  // Boot
+  Boot::Config boot_cfg;
+  boot_cfg.width = 128;
+  boot_cfg.height = 128;
+  boot_cfg.font = &unscii_8_jp;
+  boot_ = std::make_unique<Boot>(boot_cfg);
+  boot_->init(lv_screen_active());
+  // Terminal
+  Terminal::Config term_cfg;
+  term_cfg.width = 128;
+  term_cfg.height = 128;
+  term_cfg.font = &unscii_8_jp;
+  terminal_ = std::make_unique<Terminal>(term_cfg);
+  terminal_->init(lv_screen_active());
+  terminal_->set_visible(false);
+  // MatrixRain
+  MatrixRain::Config rain_cfg;
+  rain_cfg.screen_width = 128;
+  rain_cfg.screen_height = 128;
+  rain_cfg.char_width = matrix_char_width_;
+  rain_cfg.char_height = matrix_char_height_;
+  rain_cfg.min_drop_length = 3;
+  rain_cfg.max_drop_length = 6;
+  rain_cfg.update_interval_ms = 40;
+  matrix_rain_ = std::make_unique<MatrixRain>(rain_cfg);
+  matrix_rain_->set_font(&unscii_8_jp);
+  matrix_rain_->init(lv_screen_active());
+  matrix_rain_->set_visible(false);
 }
 
 void Gui::on_value_changed(lv_event_t *e) {
@@ -159,22 +110,16 @@ void Gui::on_key(lv_event_t *e) {
   logger_.info("KEY: {} on {}", key, fmt::ptr(target));
 }
 
-// Animation callback for y-position
-static void set_label_y(void *label, int32_t v) { lv_obj_set_y((lv_obj_t *)label, v); }
-
-// Animation ready callback to reset the drop
-void Gui::matrix_rain_anim_ready_cb(lv_anim_t *a) {
-  // The user_data is a pointer to the MatrixRainColumn
-  auto *col = static_cast<Gui::MatrixRainColumn *>(a->user_data);
-  // Set head to space when resetting
-  col->chars.back() = ' ';
-  col->state = Gui::MatrixRainColumn::State::WAITING;
-  col->timer = lv_tick_get() + 200 + (rand() % 1200);
-  // Reset label positions
-  int label_height = col->chars.size() * 8; // matrix_char_height_
-  lv_obj_set_y(col->tail_label, -label_height);
-  lv_obj_set_y(col->head_label, -label_height + (col->chars.size() - 1) * 8);
-}
+// Add boot animation state
+struct BootLineAnim {
+  enum class State { IDLE, ANIMATING_MEM, PAUSE_AFTER_COLON, DONE } state = State::IDLE;
+  size_t current_mem = 0;
+  uint32_t last_update = 0;
+  std::string line_text;
+  std::string prefix;
+  std::string suffix;
+};
+static BootLineAnim boot_anim;
 
 void Gui::update() {
   if (paused_)
@@ -182,29 +127,109 @@ void Gui::update() {
   std::lock_guard<std::recursive_mutex> lk(mutex_);
 
   uint32_t now = lv_tick_get();
-  int screen_h = 128;
 
   switch (mode_) {
-  case Mode::BOOT:
-    draw_boot_screen();
+  case Mode::BOOT: {
+    // Handle animated boot lines
     if (boot_line_index_ < boot_lines_.size()) {
-      if (now - last_boot_line_time_ > boot_line_delay_ms_) {
-        boot_line_index_++;
-        last_boot_line_time_ = now;
+      std::string line = boot_lines_[boot_line_index_];
+      // Animated memory check
+      if (line.find("{MEM}") != std::string::npos) {
+        if (boot_anim.state == BootLineAnim::State::IDLE) {
+          boot_anim.state = BootLineAnim::State::ANIMATING_MEM;
+          boot_anim.current_mem = 0;
+          boot_anim.last_update = now;
+          boot_anim.line_text = line;
+        }
+        if (boot_anim.state == BootLineAnim::State::ANIMATING_MEM) {
+          if (now - boot_anim.last_update > 10) {
+            boot_anim.current_mem += 32;
+            if (boot_anim.current_mem >= 640) {
+              boot_anim.current_mem = 640;
+              boot_anim.state = BootLineAnim::State::DONE;
+            }
+            boot_anim.last_update = now;
+            // Update label with current value
+            std::string mem_line = line;
+            size_t pos = mem_line.find("{MEM}");
+            mem_line.replace(pos, 5, std::to_string(boot_anim.current_mem));
+            if (boot_)
+              boot_->update_last_line(mem_line);
+          }
+          // Wait for animation to finish
+          if (boot_anim.state != BootLineAnim::State::DONE)
+            break;
+        }
+      }
+      // Pause after colon
+      else if (line.find(":") != std::string::npos &&
+               boot_anim.state == BootLineAnim::State::IDLE) {
+        size_t pos = line.find(":");
+        boot_anim.prefix = line.substr(0, pos + 1);
+        boot_anim.suffix = line.substr(pos + 1);
+        boot_anim.last_update = now;
+        boot_anim.state = BootLineAnim::State::PAUSE_AFTER_COLON;
+        // Show only prefix
+        if (boot_)
+          boot_->add_line(boot_anim.prefix);
+        break;
+      } else if (boot_anim.state == BootLineAnim::State::PAUSE_AFTER_COLON) {
+        if (now - boot_anim.last_update > 350) {
+          // Show full line
+          if (boot_)
+            boot_->add_line(boot_anim.prefix + boot_anim.suffix);
+          boot_anim.state = BootLineAnim::State::DONE;
+        } else {
+          break;
+        }
+      }
+      // Normal line
+      if (boot_anim.state == BootLineAnim::State::IDLE ||
+          boot_anim.state == BootLineAnim::State::DONE) {
+        if (boot_anim.state == BootLineAnim::State::DONE) {
+          boot_anim.state = BootLineAnim::State::IDLE;
+          boot_line_index_++;
+          last_boot_line_time_ = now;
+          break;
+        }
+        if (now - last_boot_line_time_ > boot_line_delay_ms_) {
+          if (boot_)
+            boot_->add_line(line);
+          boot_line_index_++;
+          last_boot_line_time_ = now;
+        }
       }
     } else {
       // Boot finished, go to terminal
       mode_ = Mode::TERMINAL;
       terminal_start_time_ = now;
       terminal_prompt_chars_shown_ = 0;
+      boot_anim = BootLineAnim{};
+      if (boot_)
+        boot_->start_fade_out();
+      if (terminal_)
+        terminal_->set_visible(true);
     }
+    if (boot_)
+      boot_->update();
     break;
-  case Mode::TERMINAL:
-    draw_terminal();
-    // Animate typing the terminal prompt
+  }
+  case Mode::TERMINAL: {
+    if (terminal_)
+      terminal_->update();
+    // Animate typing the terminal prompt with per-line delay
+    static uint32_t last_char_time = 0;
+    static size_t last_newline = 0;
     if (terminal_prompt_chars_shown_ < terminal_prompt_.size()) {
-      static uint32_t last_char_time = 0;
-      if (now - last_char_time > 60) { // 60ms per char
+      if (terminal_prompt_[terminal_prompt_chars_shown_] == '\n') {
+        last_newline = terminal_prompt_chars_shown_;
+      }
+      uint32_t delay = 60;
+      if (terminal_prompt_[terminal_prompt_chars_shown_] == '\n')
+        delay = 600; // longer pause after each line
+      if (now - last_char_time > delay) {
+        if (terminal_)
+          terminal_->kb_type(terminal_prompt_[terminal_prompt_chars_shown_]);
         terminal_prompt_chars_shown_++;
         last_char_time = now;
       }
@@ -213,152 +238,39 @@ void Gui::update() {
       if (now - terminal_start_time_ > terminal_duration_ms_ + 1000) {
         mode_ = Mode::MATRIX_RAIN;
         matrix_rain_start_time_ = now;
-        // Remove boot/terminal label
-        if (boot_terminal_container_) {
-          lv_obj_del(boot_terminal_container_);
-          boot_terminal_container_ = nullptr;
+        if (terminal_)
+          terminal_->start_fade_out();
+        if (matrix_rain_) {
+          matrix_rain_->set_visible(true);
+          matrix_rain_->set_prompt(terminal_prompt_.c_str());
         }
-        // TODO: Show terminal prompt text at the top of the Matrix rain effect
       }
     }
     break;
+  }
   case Mode::MATRIX_RAIN:
-    for (size_t i = 0; i < matrix_rain_columns_.size(); ++i) {
-      auto &col = matrix_rain_columns_[i];
-      int col_length = col.chars.size();
-      int label_height = col_length * matrix_char_height_;
-      if (col.state == MatrixRainColumn::State::WAITING) {
-        if (now >= col.timer) {
-          col.state = MatrixRainColumn::State::RAINING;
-          // Randomize chars, speed, and col_length
-          col.chars.clear();
-          int new_col_length = matrix_rain_num_chars_ + (rand() % matrix_rain_num_chars_ / 2);
-          lv_obj_set_height(col.tail_label, (new_col_length - 1) * matrix_char_height_);
-          lv_obj_set_height(col.head_label, matrix_char_height_);
-          for (int t = 0; t < new_col_length; ++t)
-            col.chars.push_back(random_katakana());
-          col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
-          lv_obj_set_pos(col.tail_label, 0, -new_col_length * matrix_char_height_);
-          lv_obj_set_pos(col.head_label, 0,
-                         -new_col_length * matrix_char_height_ +
-                             (new_col_length - 1) * matrix_char_height_);
-          // Start LVGL animation for both labels
-          int start_y = -new_col_length * matrix_char_height_;
-          int end_y = screen_h;
-          int duration_ms =
-              (int)((end_y - start_y) / col.rain_speed * (matrix_rain_update_interval_));
-          // Animate tail_label
-          lv_anim_t a;
-          lv_anim_init(&a);
-          lv_anim_set_var(&a, col.tail_label);
-          lv_anim_set_values(&a, start_y, end_y);
-          lv_anim_set_time(&a, duration_ms);
-          lv_anim_set_exec_cb(&a, set_label_y);
-          lv_anim_set_ready_cb(&a, matrix_rain_anim_ready_cb);
-          lv_anim_set_user_data(&a, &col);
-          lv_anim_start(&a);
-          // Animate head_label
-          lv_anim_t b;
-          lv_anim_init(&b);
-          lv_anim_set_var(&b, col.head_label);
-          lv_anim_set_values(&b, start_y + (new_col_length - 1) * matrix_char_height_,
-                             end_y + (new_col_length - 1) * matrix_char_height_);
-          lv_anim_set_time(&b, duration_ms);
-          lv_anim_set_exec_cb(&b, set_label_y);
-          lv_anim_start(&b);
-          col.timer = now;
-        }
-        continue;
-      }
-      if (col.state == MatrixRainColumn::State::RAINING) {
-        // Only randomize characters as the drop falls
-        for (size_t t = 0; t < col.chars.size(); ++t) {
-          if ((rand() % 4) == 0) {
-            col.chars[t] = random_katakana();
-          }
-        }
-        // Update tail label text (all but last char)
-        std::string tail_text;
-        for (size_t j = 0; j < col.chars.size() - 1; ++j) {
-          char utf8[5] = {0};
-          unicode_to_utf8(col.chars[j], utf8);
-          tail_text += utf8;
-          tail_text += "\n";
-        }
-        lv_label_set_text(col.tail_label, tail_text.c_str());
-        // Update head label text (last char)
-        char head_utf8[5] = {0};
-        unicode_to_utf8(col.chars.back(), head_utf8);
-        lv_label_set_text(col.head_label, head_utf8);
-      }
-    }
+    if (matrix_rain_)
+      matrix_rain_->update();
     break;
   }
 
   lv_task_handler();
 }
 
-void Gui::draw_boot_screen() {
-  if (!boot_terminal_container_)
-    return;
-  if (boot_terminal_labels_.empty()) {
-    // make a label for the boot message
-    auto *lbl = lv_label_create(boot_terminal_container_);
-    lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(lbl, 128);
-    // size to content
-    lv_obj_set_height(lbl, LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(lbl, &unscii_8_jp, 0);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0x00FF00), 0);
-    lv_obj_set_style_bg_opa(lbl, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_LEFT, 0);
-    boot_terminal_labels_.push_back(lbl);
-  }
-  // now add the line at boot_line_index_ to the label
-  if (boot_line_index_ >= boot_lines_.size()) {
-    // No more lines to show
-    return;
-  }
-  static int last_boot_index = -1;
-  if (boot_line_index_ == last_boot_index) {
-    // No change, nothing to do
-    return;
-  }
-  std::string boot_text = "";
-  for (size_t i = 0; i < boot_line_index_; ++i) {
-    boot_text += "\n" + boot_lines_[i];
-  }
-  // Update the label text
-  auto *lbl = boot_terminal_labels_.back();
-  lv_label_set_text(lbl, boot_text.c_str());
-  // Update layout and scroll to this label to ensure it's visible
-  lv_obj_update_layout(boot_terminal_container_);
-  lv_obj_scroll_to_view(lbl, LV_ANIM_OFF);
-  // Scroll to the bottom of the container
-  lv_obj_scroll_to_y(boot_terminal_container_, lv_obj_get_height(lbl), LV_ANIM_OFF);
-  last_boot_index = boot_line_index_;
-}
-
-void Gui::draw_terminal() {
-  if (!boot_terminal_container_)
-    return;
-  // Add the animated terminal prompt as a label
-  if (terminal_prompt_chars_shown_ == 0) {
-    // add the label the first time
-    auto *lbl = lv_label_create(boot_terminal_container_);
-    lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(lbl, 128);
-    lv_obj_set_style_text_font(lbl, &unscii_8_jp, 0);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0x00FF00), 0);
-    lv_obj_set_style_bg_opa(lbl, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_LEFT, 0);
-    boot_terminal_labels_.push_back(lbl);
-  }
-  std::string prompt = terminal_prompt_.substr(0, terminal_prompt_chars_shown_);
-  if (!prompt.empty()) {
-    auto *lbl = boot_terminal_labels_.back();
-    lv_label_set_text(lbl, prompt.c_str());
-    lv_obj_update_layout(boot_terminal_container_);
-    lv_obj_scroll_to_view(lbl, LV_ANIM_OFF);
+void Gui::restart() {
+  std::lock_guard<std::recursive_mutex> lk(mutex_);
+  // Reset all state
+  boot_line_index_ = 0;
+  terminal_prompt_chars_shown_ = 0;
+  last_boot_line_time_ = 0;
+  terminal_start_time_ = 0;
+  matrix_rain_start_time_ = 0;
+  mode_ = Mode::BOOT;
+  // Re-init UI and MatrixRain
+  deinit_ui();
+  init_ui();
+  if (matrix_rain_) {
+    matrix_rain_->set_visible(false);
+    matrix_rain_->restart();
   }
 }

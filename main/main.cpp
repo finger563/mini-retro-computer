@@ -41,27 +41,20 @@ extern "C" void app_main(void) {
     logger.error("Failed to initialize display!");
     return;
   }
+
+  // now initialize the GUI
+  Gui gui({});
+
   // initialize the button, which we'll use to cycle the rotation of the display
   logger.info("Initializing the button");
   auto on_button_pressed = [&](const auto &event) {
     if (event.active) {
-      // increment the brightness by 10%, looping back to 0% after 100%
-      auto brightness = byte90.brightness();
-      brightness = std::fmod(brightness + 10.0f, 100.0f);
-      logger.info("Setting brightness to {:.0f}%", brightness);
-      byte90.brightness(brightness);
-      // lock the display mutex
-      std::lock_guard<std::recursive_mutex> lock(lvgl_mutex);
-      static auto rotation = LV_DISPLAY_ROTATION_0;
-      rotation = static_cast<lv_display_rotation_t>((static_cast<int>(rotation) + 1) % 4);
-      lv_display_t *disp = lv_disp_get_default();
-      lv_disp_set_rotation(disp, rotation);
+      // call reset on the gui
+      logger.info("Button pressed, restarting GUI");
+      gui.restart();
     }
   };
   byte90.initialize_button(on_button_pressed);
-
-  // now initialize the GUI
-  [[maybe_unused]] Gui gui({});
 
   // also print in the main thread
   while (true) {

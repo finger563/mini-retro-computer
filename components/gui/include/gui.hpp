@@ -6,8 +6,11 @@
 #include <vector>
 
 #include "base_component.hpp"
+#include "boot.hpp"
 #include "display.hpp"
 #include "high_resolution_timer.hpp"
+#include "matrix_rain.hpp"
+#include "terminal.hpp"
 
 class Gui : public espp::BaseComponent {
 public:
@@ -47,6 +50,8 @@ public:
     paused_ = false;
   }
 
+  void restart();
+
 protected:
   enum class Mode { BOOT, TERMINAL, MATRIX_RAIN };
 
@@ -69,6 +74,7 @@ protected:
       "RAM = 640K",
       "Video BIOS shadowed",
       "UMB upper memory initialized",
+      "Checking memory: {MEM} KB",
       "Initializing devices...",
       "Primary master disk: 20MB ST-225",
       "Primary slave disk: None",
@@ -90,29 +96,6 @@ protected:
   uint32_t terminal_start_time_{0};
   uint32_t terminal_duration_ms_{2000};
   uint32_t matrix_rain_start_time_{0};
-
-  // Matrix rain state
-  struct MatrixRainColumn {
-    lv_obj_t *container{nullptr};
-    lv_obj_t *tail_label{nullptr};
-    lv_obj_t *head_label{nullptr};
-    enum class State { WAITING, RAINING } state{State::WAITING};
-    uint32_t timer{0};
-    float rain_speed{1.0f};
-    std::vector<uint32_t> chars;
-  };
-  std::vector<MatrixRainColumn> matrix_rain_columns_;
-  int matrix_char_height_{8};
-  int matrix_char_width_{8};
-  int matrix_cols_{0};
-  int matrix_rows_{0};
-  uint32_t matrix_rain_last_update_{0};
-  uint32_t matrix_rain_update_interval_{40}; // ms, how often to animate rain
-  int matrix_rain_head_glow_length_{2};      // number of spans for the head glow
-
-  // LVGL object pointers
-  lv_obj_t *boot_terminal_container_{nullptr};
-  std::vector<lv_obj_t *> boot_terminal_labels_;
 
   // LVGL styles
   lv_style_t style_green_text_;
@@ -175,4 +158,13 @@ protected:
 
   static uint32_t random_katakana();
   static void unicode_to_utf8(uint32_t unicode, char *utf8);
+
+  std::unique_ptr<MatrixRain> matrix_rain_;
+
+  // Character cell size for MatrixRain config
+  int matrix_char_width_{8};
+  int matrix_char_height_{8};
+
+  std::unique_ptr<Boot> boot_;
+  std::unique_ptr<Terminal> terminal_;
 };
