@@ -28,13 +28,10 @@ void Boot::init(lv_obj_t *parent) {
 }
 
 void Boot::deinit() {
-  if (label_) {
-    lv_obj_del(label_);
-    label_ = nullptr;
-  }
   if (container_) {
     lv_obj_del(container_);
     container_ = nullptr;
+    label_ = nullptr;
   }
   lines_.clear();
   fading_ = false;
@@ -90,10 +87,15 @@ void Boot::start_fade_out() {
   lv_anim_set_time(&a, 400);
   lv_anim_set_exec_cb(&a,
                       [](void *obj, int32_t v) { lv_obj_set_style_opa((lv_obj_t *)obj, v, 0); });
+  lv_anim_set_user_data(&a, this);
   lv_anim_set_ready_cb(&a, [](lv_anim_t *anim) {
-    lv_obj_t *container = lv_obj_get_parent((lv_obj_t *)anim->var);
-    if (container)
-      lv_obj_del(container);
+    auto *self = static_cast<Boot *>(lv_anim_get_user_data(anim));
+    if (self && self->container_) {
+      lv_obj_del(self->container_);
+      self->container_ = nullptr;
+      self->label_ = nullptr;
+    }
+    // fading_ will be reset on next init
   });
   lv_anim_start(&a);
 }

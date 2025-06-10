@@ -11,26 +11,6 @@ extern "C" {
 extern const lv_font_t unscii_8_jp;
 }
 
-// Add helpers for Katakana and UTF-8
-uint32_t Gui::random_katakana() { return 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1)); }
-void Gui::unicode_to_utf8(uint32_t unicode, char *utf8) {
-  if (unicode < 0x80)
-    utf8[0] = unicode;
-  else if (unicode < 0x800) {
-    utf8[0] = 0xC0 | (unicode >> 6);
-    utf8[1] = 0x80 | (unicode & 0x3F);
-  } else if (unicode < 0x10000) {
-    utf8[0] = 0xE0 | (unicode >> 12);
-    utf8[1] = 0x80 | ((unicode >> 6) & 0x3F);
-    utf8[2] = 0x80 | (unicode & 0x3F);
-  } else {
-    utf8[0] = 0xF0 | (unicode >> 18);
-    utf8[1] = 0x80 | ((unicode >> 12) & 0x3F);
-    utf8[2] = 0x80 | ((unicode >> 6) & 0x3F);
-    utf8[3] = 0x80 | (unicode & 0x3F);
-  }
-}
-
 void Gui::deinit_ui() {
   logger_.info("Deinitializing UI");
   if (boot_) {
@@ -242,7 +222,7 @@ void Gui::update() {
           terminal_->start_fade_out();
         if (matrix_rain_) {
           matrix_rain_->set_visible(true);
-          matrix_rain_->set_prompt(terminal_prompt_.c_str());
+          // matrix_rain_->set_prompt(terminal_prompt_.c_str());
         }
       }
     }

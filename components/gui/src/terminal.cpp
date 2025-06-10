@@ -28,13 +28,10 @@ void Terminal::init(lv_obj_t *parent) {
 }
 
 void Terminal::deinit() {
-  if (label_) {
-    lv_obj_del(label_);
-    label_ = nullptr;
-  }
   if (container_) {
     lv_obj_del(container_);
     container_ = nullptr;
+    label_ = nullptr;
   }
   prompt_.clear();
   typed_.clear();
@@ -47,6 +44,8 @@ void Terminal::update() {
 }
 
 void Terminal::set_prompt(const std::string &prompt) {
+  if (fading_)
+    return;
   prompt_ = prompt;
   typed_.clear();
   if (label_)
@@ -54,6 +53,8 @@ void Terminal::set_prompt(const std::string &prompt) {
 }
 
 void Terminal::kb_type(char c) {
+  if (fading_)
+    return;
   typed_ += c;
   std::string text = prompt_ + typed_;
   if (cursor_visible_)
@@ -63,6 +64,8 @@ void Terminal::kb_type(char c) {
 }
 
 void Terminal::blink() {
+  if (fading_)
+    return;
   cursor_visible_ = !cursor_visible_;
   std::string text = prompt_ + typed_;
   if (cursor_visible_)
@@ -85,20 +88,25 @@ bool Terminal::is_visible() const {
 }
 
 void Terminal::start_fade_out() {
-  if (!container_ || !label_ || fading_)
+  if (!container_ || fading_)
     return;
   fading_ = true;
   lv_anim_t a;
   lv_anim_init(&a);
-  lv_anim_set_var(&a, label_);
+  lv_anim_set_var(&a, container_);
   lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
   lv_anim_set_time(&a, 400);
   lv_anim_set_exec_cb(&a,
                       [](void *obj, int32_t v) { lv_obj_set_style_opa((lv_obj_t *)obj, v, 0); });
+  lv_anim_set_user_data(&a, this);
   lv_anim_set_ready_cb(&a, [](lv_anim_t *anim) {
-    lv_obj_t *container = lv_obj_get_parent((lv_obj_t *)anim->var);
-    if (container)
-      lv_obj_del(container);
+    auto *self = static_cast<Terminal *>(lv_anim_get_user_data(anim));
+    if (self && self->container_) {
+      lv_obj_del(self->container_);
+      self->container_ = nullptr;
+      self->label_ = nullptr;
+    }
+    // fading_ will be reset on next init
   });
   lv_anim_start(&a);
 }

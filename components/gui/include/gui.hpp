@@ -156,9 +156,6 @@ protected:
   uint32_t matrix_rain_speed_{1};
   uint8_t matrix_rain_num_chars_{5};
 
-  static uint32_t random_katakana();
-  static void unicode_to_utf8(uint32_t unicode, char *utf8);
-
   std::unique_ptr<MatrixRain> matrix_rain_;
 
   // Character cell size for MatrixRain config
