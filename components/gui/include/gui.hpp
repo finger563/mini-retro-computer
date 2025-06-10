@@ -13,7 +13,7 @@ class Gui : public espp::BaseComponent {
 public:
   struct Config {
     espp::Logger::Verbosity log_level{espp::Logger::Verbosity::WARN};
-    uint32_t boot_line_delay_ms{500};
+    uint32_t boot_line_delay_ms{250};
     uint32_t terminal_duration_ms{2000};
     uint32_t matrix_rain_speed{1}; // Not used yet, but for future extension
     uint32_t timer_interval_ms{30};
@@ -60,14 +60,32 @@ protected:
   // Boot/terminal/matrix rain state
   Mode mode_{Mode::BOOT};
   size_t boot_line_index_{0};
-  std::vector<std::string> boot_lines_ = {"Retro Computer BIOS v1.03",
-                                          "640K RAM SYSTEM",
-                                          "Initializing devices...",
-                                          "Detecting display: OK",
-                                          "Detecting keyboard: OK",
-                                          "Booting...",
-                                          "READY."};
-  uint32_t boot_line_delay_ms_{500};
+  std::vector<std::string> boot_lines_ = {
+      "Retro Computer BIOS v1.03",
+      "640K RAM SYSTEM",
+      "Phoenix Systems Ltd.",
+      "Copyright 1988-1999",
+      "CPU = 8086",
+      "RAM = 640K",
+      "Video BIOS shadowed",
+      "UMB upper memory initialized",
+      "Initializing devices...",
+      "Primary master disk: 20MB ST-225",
+      "Primary slave disk: None",
+      "Secondary master disk: None",
+      "Secondary slave disk: None",
+      "Floppy drive A: 1.44MB 3.5in",
+      "Floppy drive B: None",
+      "Serial port(s): COM1 COM2",
+      "Parallel port(s): LPT1",
+      "Detecting display: OK",
+      "Detecting keyboard: OK",
+      "\nREADY.",
+  };
+  std::string terminal_prompt_ = "> wake up, Neo...\n> the Matrix has you...\n> follow the white "
+                                 "rabbit.\n> knock, knock, Neo.";
+  size_t terminal_prompt_chars_shown_{0};
+  uint32_t boot_line_delay_ms_{100};
   uint32_t last_boot_line_time_{0};
   uint32_t terminal_start_time_{0};
   uint32_t terminal_duration_ms_{2000};
@@ -93,7 +111,8 @@ protected:
   int matrix_rain_head_glow_length_{2};      // number of spans for the head glow
 
   // LVGL object pointers
-  lv_obj_t *boot_terminal_label_{nullptr};
+  lv_obj_t *boot_terminal_container_{nullptr};
+  std::vector<lv_obj_t *> boot_terminal_labels_;
 
   // LVGL styles
   lv_style_t style_green_text_;
@@ -137,6 +156,8 @@ protected:
     }
   }
 
+  static void matrix_rain_anim_ready_cb(lv_anim_t *a);
+
   void on_pressed(lv_event_t *e);
   void on_value_changed(lv_event_t *e);
   void on_key(lv_event_t *e);
@@ -150,15 +171,7 @@ protected:
   std::recursive_mutex mutex_;
 
   uint32_t matrix_rain_speed_{1};
-
-  // Test: single spangroup for smooth vertical scroll experiment
-  lv_obj_t *test_spangroup_{nullptr};
-  std::vector<lv_span_t *> test_spans_;
-  int test_span_count_{16};
-  float test_head_pos_{0.0f};     // head position in pixels
-  float test_scroll_speed_{1.2f}; // pixels per update
-  uint32_t test_last_scroll_{0};
-  uint32_t test_scroll_interval_{16}; // ms (about 60 FPS)
+  uint8_t matrix_rain_num_chars_{5};
 
   static uint32_t random_katakana();
   static void unicode_to_utf8(uint32_t unicode, char *utf8);
