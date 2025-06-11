@@ -1,5 +1,7 @@
 # Mini Retro Computer (MRP)
 
+![image](./images/icon.png)
+
 This repository contains code that allows an ESP + Display + Housing to act like
 a little retro computer.
 
