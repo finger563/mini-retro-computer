@@ -13,31 +13,22 @@ extern const lv_font_t unscii_8_jp;
 
 void Gui::deinit_ui() {
   logger_.info("Deinitializing UI");
-  if (boot_) {
+  if (boot_)
     boot_->deinit();
-    boot_.reset();
-  }
-  if (terminal_) {
+  if (terminal_)
     terminal_->deinit();
-    terminal_.reset();
-  }
-  if (matrix_rain_) {
+  if (matrix_rain_)
     matrix_rain_->deinit();
-    matrix_rain_.reset();
-  }
+  lv_anim_del(NULL, NULL);          // Cancel all animations
+  lv_obj_clean(lv_screen_active()); // Clean all children from the screen
+  boot_.reset();
+  terminal_.reset();
+  matrix_rain_.reset();
 }
 
 void Gui::init_ui() {
   logger_.info("Initializing UI");
-  // Remove any old boot/terminal objects
-  if (boot_) {
-    boot_->deinit();
-    boot_.reset();
-  }
-  if (terminal_) {
-    terminal_->deinit();
-    terminal_.reset();
-  }
+  // Do NOT call lv_obj_clean here
   // Boot
   Boot::Config boot_cfg;
   boot_cfg.width = 128;
@@ -242,11 +233,7 @@ void Gui::restart() {
   matrix_rain_start_time_ = 0;
   mode_ = Mode::BOOT;
   last_char_time_ = 0;
-  // Re-init UI and MatrixRain
+  // Re-init UI
   deinit_ui();
   init_ui();
-  if (matrix_rain_) {
-    matrix_rain_->set_visible(false);
-    matrix_rain_->restart();
-  }
 }

@@ -1,4 +1,5 @@
 #include "matrix_rain.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -53,15 +54,19 @@ void MatrixRain::set_prompt(const char *text) {
 
 void MatrixRain::init(lv_obj_t *parent) {
   deinit();
+  if (!parent) {
+    parent_ = nullptr;
+    return;
+  }
   parent_ = parent;
   cols_ = config_.screen_width / config_.char_width;
   rows_ = config_.screen_height / config_.char_height;
   columns_.clear();
   for (int x = 0; x < cols_; ++x) {
     Column col;
-    int col_length = config_.min_drop_length +
-                     (rand() % (config_.max_drop_length - config_.min_drop_length + 1));
     col.container = lv_obj_create(parent_);
+    if (!col.container)
+      continue;
     lv_obj_set_size(col.container, config_.char_width, config_.screen_height - 1);
     lv_obj_set_pos(col.container, x * config_.char_width, 0);
     lv_obj_set_scrollbar_mode(col.container, LV_SCROLLBAR_MODE_OFF);
@@ -71,51 +76,50 @@ void MatrixRain::init(lv_obj_t *parent) {
     lv_obj_set_style_pad_all(col.container, 0, 0);
     lv_obj_set_style_pad_row(col.container, 0, 0);
     lv_obj_set_style_pad_column(col.container, 0, 0);
-    // Tail label
-    col.tail_label = lv_label_create(col.container);
-    lv_obj_set_width(col.tail_label, config_.char_width);
-    lv_obj_set_height(col.tail_label, (col_length - 1) * config_.char_height);
-    lv_label_set_long_mode(col.tail_label, LV_LABEL_LONG_WRAP);
-    if (font_)
-      lv_obj_set_style_text_font(col.tail_label, font_, 0);
-    lv_obj_set_style_text_color(col.tail_label, lv_color_hex(0x00FF00), 0);
-    lv_obj_set_style_bg_opa(col.tail_label, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(col.tail_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(col.tail_label, 0, -col_length * config_.char_height);
-    // Head label
-    col.head_label = lv_label_create(col.container);
-    lv_obj_set_width(col.head_label, config_.char_width);
-    lv_obj_set_height(col.head_label, config_.char_height);
-    lv_label_set_long_mode(col.head_label, LV_LABEL_LONG_WRAP);
-    if (font_)
-      lv_obj_set_style_text_font(col.head_label, font_, 0);
-    lv_obj_set_style_text_color(col.head_label, lv_color_hex(0xB6FF00), 0);
-    lv_obj_set_style_bg_opa(col.head_label, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_align(col.head_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(col.head_label, 0,
-                   -col_length * config_.char_height + (col_length - 1) * config_.char_height);
-    col.state = Column::State::WAITING;
-    col.timer = lv_tick_get() + (rand() % 1200);
-    col.chars.clear();
-    for (int t = 0; t < col_length; ++t)
-      col.chars.push_back(random_katakana());
-    col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
-    columns_.push_back(col);
+    // Create one label per row
+    for (int y = 0; y < rows_; ++y) {
+      CharCell cell;
+      cell.label = lv_label_create(col.container);
+      if (!cell.label)
+        continue;
+      lv_obj_set_size(cell.label, config_.char_width, config_.char_height);
+      lv_obj_set_pos(cell.label, 0, y * config_.char_height);
+      lv_label_set_long_mode(cell.label, LV_LABEL_LONG_CLIP);
+      if (font_)
+        lv_obj_set_style_text_font(cell.label, font_, 0);
+      lv_label_set_text(cell.label, "");
+      lv_obj_set_style_text_color(cell.label, lv_color_hex(0x000000), 0);
+      lv_obj_set_style_bg_opa(cell.label, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_text_align(cell.label, LV_TEXT_ALIGN_CENTER, 0);
+      cell.codepoint = 0;
+      cell.fading = false;
+      cell.fade_progress = 0.0f;
+      cell.fade_start_time = 0;
+      col.cells.push_back(cell);
+    }
+    col.drops.clear();
+    // Randomize last_spawn_time to desynchronize columns
+    col.last_spawn_time = lv_tick_get() + (rand() % config_.drop_spawn_interval_ms);
+    columns_.push_back(std::move(col));
   }
   last_update_ = lv_tick_get();
 }
 
 void MatrixRain::deinit() {
   for (auto &col : columns_) {
-    if (col.tail_label)
-      lv_obj_del(col.tail_label);
-    if (col.head_label)
-      lv_obj_del(col.head_label);
-    if (col.container)
+    for (auto &cell : col.cells) {
+      if (cell.label && lv_obj_is_valid(cell.label))
+        lv_obj_del(cell.label);
+      cell.label = nullptr;
+    }
+    if (col.container && lv_obj_is_valid(col.container))
       lv_obj_del(col.container);
+    col.container = nullptr;
+    col.cells.clear();
+    col.drops.clear();
   }
   columns_.clear();
-  if (prompt_label_) {
+  if (prompt_label_ && lv_obj_is_valid(prompt_label_)) {
     lv_obj_del(prompt_label_);
     prompt_label_ = nullptr;
   }
@@ -128,79 +132,119 @@ void MatrixRain::restart() {
 }
 
 void MatrixRain::update() {
-  [[maybe_unused]] uint32_t now = lv_tick_get();
-  for (auto &col : columns_) {
-    update_column(col);
-  }
-}
-
-void MatrixRain::start_column(Column &col) {
-  int col_length =
-      config_.min_drop_length + (rand() % (config_.max_drop_length - config_.min_drop_length + 1));
-  lv_obj_set_height(col.tail_label, (col_length - 1) * config_.char_height);
-  lv_obj_set_height(col.head_label, config_.char_height);
-  col.chars.clear();
-  for (int t = 0; t < col_length; ++t)
-    col.chars.push_back(random_katakana());
-  col.rain_speed = 1.0f + (rand() % 100) / 60.0f;
-  lv_obj_set_pos(col.tail_label, 0, -col_length * config_.char_height);
-  lv_obj_set_pos(col.head_label, 0,
-                 -col_length * config_.char_height + (col_length - 1) * config_.char_height);
-  // Animate tail_label
-  int start_y = -col_length * config_.char_height;
-  int end_y = config_.screen_height - 1;
-  int duration_ms = (int)((end_y - start_y) / col.rain_speed * (update_interval_));
-  lv_anim_t a;
-  lv_anim_init(&a);
-  lv_anim_set_var(&a, col.tail_label);
-  lv_anim_set_values(&a, start_y, end_y);
-  lv_anim_set_time(&a, duration_ms);
-  lv_anim_set_exec_cb(&a, set_label_y);
-  lv_anim_set_ready_cb(&a, anim_ready_cb);
-  lv_anim_set_user_data(&a, &col);
-  lv_anim_start(&a);
-  // Animate head_label
-  lv_anim_t b;
-  lv_anim_init(&b);
-  lv_anim_set_var(&b, col.head_label);
-  lv_anim_set_values(&b, start_y + (col_length - 1) * config_.char_height,
-                     end_y + (col_length - 1) * config_.char_height);
-  lv_anim_set_time(&b, duration_ms);
-  lv_anim_set_exec_cb(&b, set_label_y);
-  lv_anim_start(&b);
-  col.timer = lv_tick_get();
-}
-
-void MatrixRain::update_column(Column &col) {
   uint32_t now = lv_tick_get();
-  if (col.state == Column::State::WAITING) {
-    if (now >= col.timer) {
-      col.state = Column::State::RAINING;
-      start_column(col);
+  for (auto &col : columns_) {
+    // Possibly spawn a new drop
+    if (now - col.last_spawn_time > (uint32_t)config_.drop_spawn_interval_ms) {
+      if (rand() % 10 == 0) // randomize drop frequency
+        spawn_drop(col, now);
+      col.last_spawn_time = now;
     }
-    return;
+    // Update all drops in this column
+    for (auto &drop : col.drops) {
+      if (drop.active)
+        update_drop(col, drop, now);
+    }
+    // Remove inactive drops
+    col.drops.erase(
+        std::remove_if(col.drops.begin(), col.drops.end(), [](const Drop &d) { return !d.active; }),
+        col.drops.end());
+    // Update fading for all cells
+    update_fade(col, now);
   }
-  if (col.state == Column::State::RAINING) {
-    // Randomize characters as the drop falls
-    for (size_t t = 0; t < col.chars.size(); ++t) {
-      if ((rand() % 4) == 0) {
-        col.chars[t] = random_katakana();
+  last_update_ = now;
+}
+
+void MatrixRain::spawn_drop(Column &col, uint32_t now) {
+  Drop drop;
+  drop.length =
+      config_.min_drop_length + (rand() % (config_.max_drop_length - config_.min_drop_length + 1));
+  drop.head_row = -1;
+  drop.last_mutate_time = now;
+  drop.last_advance_time = now;
+  drop.active = true;
+  drop.speed_ms = 30 + (rand() % 51);
+  drop.chars.clear();
+  for (int i = 0; i < drop.length; ++i)
+    drop.chars.push_back(random_katakana());
+  col.drops.push_back(drop);
+}
+
+void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {
+  // Mutate head character rapidly
+  if (now - drop.last_mutate_time > (uint32_t)config_.head_mutate_interval_ms) {
+    drop.chars.back() = random_katakana();
+    drop.last_mutate_time = now;
+  }
+  // Advance head
+  if (now - drop.last_advance_time > (uint32_t)drop.speed_ms) {
+    drop.head_row++;
+    drop.last_advance_time = now;
+    // If head is within visible area
+    if (drop.head_row >= 0 && drop.head_row < (int)col.cells.size()) {
+      // Set head cell
+      auto &cell = col.cells[drop.head_row];
+      cell.codepoint = drop.chars.back();
+      cell.fading = false;
+      cell.fade_progress = 0.0f;
+      cell.fade_start_time = 0;
+      char utf8[5] = {0};
+      unicode_to_utf8(cell.codepoint, utf8);
+      lv_label_set_text(cell.label, utf8);
+      update_cell_style(cell, 0.0f, true);
+    }
+    // Previous head becomes tail
+    if (drop.head_row - 1 >= 0 && drop.head_row - 1 < (int)col.cells.size()) {
+      auto &cell = col.cells[drop.head_row - 1];
+      cell.codepoint = drop.chars[drop.length - 2];
+      cell.fading = true;
+      cell.fade_start_time = now;
+      cell.fade_progress = 0.0f;
+      char utf8[5] = {0};
+      unicode_to_utf8(cell.codepoint, utf8);
+      lv_label_set_text(cell.label, utf8);
+      update_cell_style(cell, 0.0f, false);
+    }
+    // Shift tail chars
+    for (int i = drop.length - 2; i > 0; --i)
+      drop.chars[i] = drop.chars[i - 1];
+    drop.chars[0] = random_katakana();
+    // If head is past the bottom, mark drop inactive
+    if (drop.head_row >= (int)col.cells.size())
+      drop.active = false;
+  }
+}
+
+void MatrixRain::update_fade(Column &col, uint32_t now) {
+  for (auto &cell : col.cells) {
+    if (cell.fading) {
+      float progress = (now - cell.fade_start_time) / (float)config_.fade_duration_ms;
+      if (progress >= 1.0f) {
+        // Fade complete, clear cell
+        lv_label_set_text(cell.label, "");
+        cell.fading = false;
+        cell.fade_progress = 0.0f;
+        cell.codepoint = 0;
+      } else {
+        cell.fade_progress = progress;
+        update_cell_style(cell, progress, false);
       }
     }
-    // Update tail label text (all but last char)
-    std::string tail_text;
-    for (size_t j = 0; j < col.chars.size() - 1; ++j) {
-      char utf8[5] = {0};
-      unicode_to_utf8(col.chars[j], utf8);
-      tail_text += utf8;
-      tail_text += "\n";
-    }
-    lv_label_set_text(col.tail_label, tail_text.c_str());
-    // Update head label text (last char)
-    char head_utf8[5] = {0};
-    unicode_to_utf8(col.chars.back(), head_utf8);
-    lv_label_set_text(col.head_label, head_utf8);
   }
+}
+
+void MatrixRain::update_cell_style(CharCell &cell, float fade_progress, bool is_head) {
+  // Head: bright green, not faded
+  if (is_head) {
+    lv_obj_set_style_text_color(cell.label, lv_color_hex(0xB6FF00), 0);
+    lv_obj_set_style_opa(cell.label, LV_OPA_COVER, 0);
+    return;
+  }
+  // Tail: fade from green to black
+  uint8_t green = 0xFF * (1.0f - fade_progress);
+  uint32_t color = (green << 8);
+  lv_obj_set_style_text_color(cell.label, lv_color_hex(color), 0);
+  lv_obj_set_style_opa(cell.label, (lv_opa_t)(LV_OPA_COVER * (1.0f - fade_progress)), 0);
 }
 
 uint32_t MatrixRain::random_katakana() { return 0x30A0 + (rand() % (0x30FF - 0x30A0 + 1)); }
@@ -221,22 +265,4 @@ void MatrixRain::unicode_to_utf8(uint32_t unicode, char *utf8) {
     utf8[2] = 0x80 | ((unicode >> 6) & 0x3F);
     utf8[3] = 0x80 | (unicode & 0x3F);
   }
-}
-
-void MatrixRain::set_label_y(void *label, int32_t v) { lv_obj_set_y((lv_obj_t *)label, v); }
-
-void MatrixRain::anim_ready_cb(lv_anim_t *a) {
-  auto *col = static_cast<Column *>(lv_anim_get_user_data(a));
-  if (!col)
-    return;
-  // Set head to space when resetting
-  if (!col->chars.empty())
-    col->chars.back() = ' ';
-  col->state = Column::State::WAITING;
-  col->timer = lv_tick_get() + 200 + (rand() % 1200);
-  // get the height of the character from lvgl
-  int char_height = lv_font_get_line_height(lv_obj_get_style_text_font(col->tail_label, 0));
-  int label_height = col->chars.size() * char_height; // char_height
-  lv_obj_set_y(col->tail_label, -label_height);
-  lv_obj_set_y(col->head_label, -label_height + (col->chars.size() - 1) * char_height);
 }

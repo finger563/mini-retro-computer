@@ -1,9 +1,11 @@
 #pragma once
 
+#include <deque>
+#include <lvgl.h>
 #include <string>
 #include <vector>
 
-#include <lvgl.h>
+#include "format.hpp"
 
 class MatrixRain {
 public:
@@ -12,9 +14,12 @@ public:
     int screen_height = 128;
     int char_width = 8;
     int char_height = 8;
-    int min_drop_length = 3;
-    int max_drop_length = 6;
+    int min_drop_length = 6;
+    int max_drop_length = 16;
     int update_interval_ms = 40;
+    int fade_duration_ms = 800;
+    int head_mutate_interval_ms = 60;
+    int drop_spawn_interval_ms = 400;
   };
 
   explicit MatrixRain(const Config &config);
@@ -29,15 +34,31 @@ public:
   void set_prompt(const char *text); // Show a label behind the rain (optional)
 
 private:
+  struct CharCell {
+    lv_obj_t *label{nullptr};
+    uint32_t codepoint{0};
+    uint32_t fade_start_time{0};
+    bool fading{false};
+    float fade_progress{0.0f};
+  };
+
+  struct Drop {
+    int head_row{-1};
+    int length{0};
+    uint32_t last_mutate_time{0};
+    uint32_t last_advance_time{0};
+    bool active{true};
+    int speed_ms{40};           // Per-drop speed in ms
+    std::deque<uint32_t> chars; // head at back, tail at front
+  };
+
   struct Column {
     lv_obj_t *container{nullptr};
-    lv_obj_t *tail_label{nullptr};
-    lv_obj_t *head_label{nullptr};
-    enum class State { WAITING, RAINING } state{State::WAITING};
-    uint32_t timer{0};
-    float rain_speed{1.0f};
-    std::vector<uint32_t> chars;
+    std::vector<CharCell> cells; // one per row
+    std::vector<Drop> drops;
+    uint32_t last_spawn_time{0};
   };
+
   std::vector<Column> columns_;
   int cols_{0};
   int rows_{0};
@@ -48,10 +69,10 @@ private:
   uint32_t last_update_{0};
   uint32_t update_interval_{40};
 
-  void start_column(Column &col);
-  void update_column(Column &col);
+  void spawn_drop(Column &col, uint32_t now);
+  void update_drop(Column &col, Drop &drop, uint32_t now);
+  void update_fade(Column &col, uint32_t now);
+  void update_cell_style(CharCell &cell, float fade_progress, bool is_head);
   static uint32_t random_katakana();
   static void unicode_to_utf8(uint32_t unicode, char *utf8);
-  static void set_label_y(void *label, int32_t v);
-  static void anim_ready_cb(lv_anim_t *a);
 };
