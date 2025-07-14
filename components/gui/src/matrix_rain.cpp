@@ -154,9 +154,11 @@ void MatrixRain::update() {
 
     // Possibly spawn a new drop
     if (now - col.last_spawn_time > (uint32_t)config_.drop_spawn_interval_ms) {
-      if (rand() % 10 == 0) // randomize drop frequency
+      // randomize drop frequency
+      if (rand() % config_.drop_spawn_chance == 0) {
         spawn_drop(col, now);
-      col.last_spawn_time = now;
+        col.last_spawn_time = now;
+      }
     }
     // Update all drops in this column
     for (auto &drop : col.drops) {
@@ -182,7 +184,7 @@ void MatrixRain::spawn_drop(Column &col, uint32_t now) {
   drop.last_mutate_time = now;
   drop.last_advance_time = now;
   drop.active = true;
-  drop.speed_ms = 10 + (rand() % 50);
+  drop.speed_ms = config_.min_speed_ms + (rand() % config_.speed_range_ms);
   drop.chars.clear();
   for (int i = 0; i < drop.length; ++i)
     drop.chars.push_back(random_katakana());
