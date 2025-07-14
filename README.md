@@ -13,10 +13,18 @@ https://github.com/user-attachments/assets/a31ec884-594a-451a-a3d0-bb570fb42967
 **Table of Contents**
 
 - [Mini Retro Computer (MRP)](#mini-retro-computer-mrp)
+  - [Configure](#configure)
   - [Build and Flash](#build-and-flash)
   - [Output](#output)
 
 <!-- markdown-toc end -->
+
+## Configure
+
+This project can run on either a `Byte90` or a `Waveshare ESP32-S3 TouchLCD`
+board.
+
+You can configure which board to use by running `idf.py menuconfig`.
 
 ## Build and Flash
 
@@ -37,6 +45,16 @@ See the Getting Started Guide for full steps to configure and use ESP-IDF to bui
 Example screenshot of the console output from this app:
 
 ![CleanShot 2025-06-10 at 12 57 32](https://github.com/user-attachments/assets/d79a88a1-72d9-48f3-ae98-42bd74bea8ea)
+
+Waveshare ESP32-S3 TouchLCD board:
+
+https://github.com/user-attachments/assets/19fd89e8-21b9-4e14-b6dd-c13d6cd386b7
+
+<img width="715" height="949" alt="image" src="https://github.com/user-attachments/assets/d613c93b-9c47-4b58-a666-41708a364d97" />
+
+Byte90:
+
+https://github.com/user-attachments/assets/bb0ec5d7-b37c-44e3-a923-53e971ec151f
 
 Older images:
 
