@@ -2,6 +2,7 @@ menu "Mini Retro Computer Configuration"
 
 choice MRP_HARDWARE
   prompt "Hardware"
+  default MRP_HARDWARE_BYTE90
   help
     This option allows you to select the type of hardware you are using for your Mini Retro Computer.
     Choose the appropriate option based on your hardware setup.
