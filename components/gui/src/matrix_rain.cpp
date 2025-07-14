@@ -182,7 +182,7 @@ void MatrixRain::spawn_drop(Column &col, uint32_t now) {
   drop.last_mutate_time = now;
   drop.last_advance_time = now;
   drop.active = true;
-  drop.speed_ms = 30 + (rand() % 100);
+  drop.speed_ms = 10 + (rand() % 50);
   drop.chars.clear();
   for (int i = 0; i < drop.length; ++i)
     drop.chars.push_back(random_katakana());
@@ -198,16 +198,8 @@ void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {
 
   // Advance head state if it's time
   if (now - drop.last_advance_time > (uint32_t)drop.speed_ms) {
-    int old_head_row = drop.head_row;
     drop.head_row++;
     drop.last_advance_time = now;
-
-    // Mark the cell where the tail was as fading
-    int tail_row = old_head_row - drop.length + 1;
-    if (tail_row >= 0 && tail_row < (int)col.cells.size()) {
-      col.cells[tail_row].fading = true;
-      col.cells[tail_row].fade_start_time = now;
-    }
 
     // Shift tail chars and add a new one
     drop.chars.pop_front();
@@ -227,8 +219,17 @@ void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {
       if (row >= 0 && row < (int)col.cells.size()) {
         auto &cell = col.cells[row];
         cell.codepoint = drop.chars[drop.length - 1 - i];
-        cell.fading = false; // This character is part of an active drop.
         cell.is_head = (i == 0);
+
+        if (cell.is_head) {
+          cell.fading = false;
+        } else {
+          cell.fading = true;
+          // Create a fake start time in the past to simulate a spatial gradient.
+          // The further down the tail (higher i), the more faded the char is.
+          uint32_t offset = (config_.fade_duration_ms / (config_.max_drop_length + 2)) * i;
+          cell.fade_start_time = now - offset;
+        }
       }
     }
   }
