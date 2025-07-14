@@ -3,7 +3,7 @@
 
 #include "gui.hpp"
 
-#if 1
+#if 0
 #include "byte90.hpp"
 using Bsp = espp::Byte90;
 #define HAS_ACCELEROMETER 1
@@ -71,7 +71,7 @@ extern "C" void app_main(void) {
       gui.restart();
     }
   };
-  bsp.initialize_button(on_button_pressed);
+  bsp.initialize_boot_button(on_button_pressed);
 
   // also print in the main thread
   while (true) {

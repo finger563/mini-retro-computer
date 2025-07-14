@@ -68,7 +68,14 @@ void MatrixRain::init(lv_obj_t *parent) {
   }
   parent_ = parent;
   cols_ = config_.screen_width / config_.char_width;
-  rows_ = config_.screen_height / config_.char_height;
+
+  // Use the font's line height for layout, not the configured char_height
+  const lv_font_t *font = font_ ? font_ : lv_obj_get_style_text_font(parent_, 0);
+  int font_line_height = lv_font_get_line_height(font);
+  if (font_line_height <= 0) {
+    font_line_height = config_.char_height; // Fallback
+  }
+  rows_ = config_.screen_height / font_line_height;
 
   // Init labels
   row_labels_.clear();
@@ -78,8 +85,8 @@ void MatrixRain::init(lv_obj_t *parent) {
     auto label = lv_label_create(parent_);
     if (!label)
       continue;
-    lv_obj_set_size(label, config_.screen_width, config_.char_height);
-    lv_obj_set_pos(label, 0, y * config_.char_height);
+    lv_obj_set_size(label, config_.screen_width, font_line_height);
+    lv_obj_set_pos(label, 0, y * font_line_height);
     lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
     lv_label_set_recolor(label, true);
     if (font_)
@@ -175,7 +182,7 @@ void MatrixRain::spawn_drop(Column &col, uint32_t now) {
   drop.last_mutate_time = now;
   drop.last_advance_time = now;
   drop.active = true;
-  drop.speed_ms = 10 + (rand() % 20);
+  drop.speed_ms = 30 + (rand() % 100);
   drop.chars.clear();
   for (int i = 0; i < drop.length; ++i)
     drop.chars.push_back(random_katakana());
@@ -189,7 +196,7 @@ void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {
     drop.last_mutate_time = now;
   }
 
-  // Advance head
+  // Advance head state if it's time
   if (now - drop.last_advance_time > (uint32_t)drop.speed_ms) {
     int old_head_row = drop.head_row;
     drop.head_row++;
@@ -202,26 +209,28 @@ void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {
       col.cells[tail_row].fade_start_time = now;
     }
 
-    // Update cells for the entire drop's new position
+    // Shift tail chars and add a new one
+    drop.chars.pop_front();
+    drop.chars.push_back(random_katakana());
+
+    // If the whole drop is offscreen, mark inactive
+    if (drop.head_row - drop.length >= (int)col.cells.size()) {
+      drop.active = false;
+    }
+  }
+
+  // Always paint the drop's current state into the cell buffer,
+  // as long as it's active.
+  if (drop.active) {
     for (int i = 0; i < drop.length; ++i) {
       int row = drop.head_row - i;
       if (row >= 0 && row < (int)col.cells.size()) {
         auto &cell = col.cells[row];
         cell.codepoint = drop.chars[drop.length - 1 - i];
-        cell.fading = false; // This character is part of an active drop, so not fading
-        if (i == 0) {
-          cell.is_head = true;
-        }
+        cell.fading = false; // This character is part of an active drop.
+        cell.is_head = (i == 0);
       }
     }
-
-    // Shift tail chars and add a new one
-    drop.chars.pop_front();
-    drop.chars.push_back(random_katakana());
-
-    // If head is past the bottom, mark drop inactive
-    if (drop.head_row - drop.length >= (int)col.cells.size())
-      drop.active = false;
   }
 }
 
