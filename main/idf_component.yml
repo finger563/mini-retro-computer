@@ -16,3 +16,4 @@ dependencies:
   #   public: true
   espp/task: '>=1.0'
   espp/byte90: '>=1.0'
+  espp/ws-s3-touch: '>=1.0'

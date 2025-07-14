@@ -31,23 +31,23 @@ void Gui::init_ui() {
   // Do NOT call lv_obj_clean here
   // Boot
   Boot::Config boot_cfg;
-  boot_cfg.width = 128;
-  boot_cfg.height = 128;
+  boot_cfg.width = lv_disp_get_hor_res(NULL);
+  boot_cfg.height = lv_disp_get_ver_res(NULL);
   boot_cfg.font = &unscii_8_jp;
   boot_ = std::make_unique<Boot>(boot_cfg);
   boot_->init(lv_screen_active());
   // Terminal
   Terminal::Config term_cfg;
-  term_cfg.width = 128;
-  term_cfg.height = 128;
+  term_cfg.width = lv_disp_get_hor_res(NULL);
+  term_cfg.height = lv_disp_get_ver_res(NULL);
   term_cfg.font = &unscii_8_jp;
   terminal_ = std::make_unique<Terminal>(term_cfg);
   terminal_->init(lv_screen_active());
   terminal_->set_visible(false);
   // MatrixRain
   MatrixRain::Config rain_cfg;
-  rain_cfg.screen_width = 128;
-  rain_cfg.screen_height = 128;
+  rain_cfg.screen_width = lv_disp_get_hor_res(NULL);
+  rain_cfg.screen_height = lv_disp_get_ver_res(NULL);
   rain_cfg.char_width = matrix_char_width_;
   rain_cfg.char_height = matrix_char_height_;
   rain_cfg.min_drop_length = 3;

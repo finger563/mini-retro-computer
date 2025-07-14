@@ -35,11 +35,10 @@ public:
 
 private:
   struct CharCell {
-    lv_obj_t *label{nullptr};
     uint32_t codepoint{0};
     uint32_t fade_start_time{0};
     bool fading{false};
-    float fade_progress{0.0f};
+    bool is_head{false};
   };
 
   struct Drop {
@@ -53,13 +52,13 @@ private:
   };
 
   struct Column {
-    lv_obj_t *container{nullptr};
     std::vector<CharCell> cells; // one per row
     std::vector<Drop> drops;
     uint32_t last_spawn_time{0};
   };
 
   std::vector<Column> columns_;
+  std::vector<lv_obj_t *> row_labels_;
   int cols_{0};
   int rows_{0};
   const lv_font_t *font_{nullptr};
@@ -72,7 +71,7 @@ private:
   void spawn_drop(Column &col, uint32_t now);
   void update_drop(Column &col, Drop &drop, uint32_t now);
   void update_fade(Column &col, uint32_t now);
-  void update_cell_style(CharCell &cell, float fade_progress, bool is_head);
+  void update_row_labels(uint32_t now);
   static uint32_t random_katakana();
   static void unicode_to_utf8(uint32_t unicode, char *utf8);
 };

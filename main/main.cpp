@@ -3,7 +3,16 @@
 
 #include "gui.hpp"
 
+#if 1
 #include "byte90.hpp"
+using Bsp = espp::Byte90;
+#define HAS_ACCELEROMETER 1
+#else
+#include "ws-s3-touch.hpp"
+using Bsp = espp::WsS3Touch;
+#define HAS_IMU 1
+#endif
+
 #include "logger.hpp"
 #include "task.hpp"
 
@@ -22,22 +31,30 @@ extern "C" void app_main(void) {
 
   logger.info("Bootup");
 
-  espp::Byte90 &byte90 = espp::Byte90::get();
-  byte90.set_log_level(espp::Logger::Verbosity::INFO);
+  auto &bsp = Bsp::get();
+  bsp.set_log_level(espp::Logger::Verbosity::INFO);
 
+#if HAS_ACCELEROMETER
   // initialize the accelerometer
-  if (!byte90.initialize_accelerometer()) {
+  if (!bsp.initialize_accelerometer()) {
     logger.error("Failed to initialize accelerometer!");
   }
+#elif HAS_IMU
+  // initialize the IMU
+  if (!bsp.initialize_imu()) {
+    logger.error("Failed to initialize IMU!");
+  }
+#endif
+
   // initialize the LCD
-  if (!byte90.initialize_lcd()) {
+  if (!bsp.initialize_lcd()) {
     logger.error("Failed to initialize LCD!");
     return;
   }
   // set the pixel buffer to be 50 lines high
-  static constexpr size_t pixel_buffer_size = byte90.lcd_width() * 50;
-  // initialize the LVGL display for the Byte90
-  if (!byte90.initialize_display(pixel_buffer_size)) {
+  static constexpr size_t pixel_buffer_size = bsp.lcd_width() * 50;
+  // initialize the LVGL display
+  if (!bsp.initialize_display(pixel_buffer_size)) {
     logger.error("Failed to initialize display!");
     return;
   }
@@ -54,7 +71,7 @@ extern "C" void app_main(void) {
       gui.restart();
     }
   };
-  byte90.initialize_button(on_button_pressed);
+  bsp.initialize_button(on_button_pressed);
 
   // also print in the main thread
   while (true) {
