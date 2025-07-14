@@ -1,0 +1,22 @@
+menu "Mini Retro Computer Configuration"
+
+choice MRP_HARDWARE
+  prompt "Hardware"
+  default MRP_HARDWARE_BYTE90
+  help
+    This option allows you to select the type of hardware you are using for your Mini Retro Computer.
+    Choose the appropriate option based on your hardware setup.
+
+config MRP_HARDWARE_BYTE90
+  bool "Byte90"
+  help
+    Select this option if you are using the Byte 90 hardware.
+
+config MRP_HARDWARE_WS_S3_TOUCHLCD
+  bool "Waveshare ESP32-S3 TouchLCD"
+  help
+    Select this option if you are using the Waveshare ESP32-S3 TouchLCD hardware.
+
+endchoice
+
+endmenu
