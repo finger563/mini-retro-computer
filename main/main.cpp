@@ -3,14 +3,17 @@
 
 #include "gui.hpp"
 
-#if 0
+#if CONFIG_MRP_HARDWARE_BYTE90
 #include "byte90.hpp"
 using Bsp = espp::Byte90;
 #define HAS_ACCELEROMETER 1
-#else
+#elif CONFIG_MRP_HARDWARE_WS_S3_TOUCHLCD
 #include "ws-s3-touch.hpp"
 using Bsp = espp::WsS3Touch;
 #define HAS_IMU 1
+#else
+#error                                                                                             \
+    "Unsupported hardware configuration. Please select a valid hardware configuration in the menuconfig."
 #endif
 
 #include "logger.hpp"
@@ -71,7 +74,7 @@ extern "C" void app_main(void) {
       gui.restart();
     }
   };
-  bsp.initialize_boot_button(on_button_pressed);
+  bsp.initialize_button(on_button_pressed);
 
   // also print in the main thread
   while (true) {

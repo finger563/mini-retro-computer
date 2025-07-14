@@ -31,3 +31,6 @@ CONFIG_LV_MEM_SIZE_KILOBYTES=128
 # font configuration
 CONFIG_LV_FONT_UNSCII_8=y
 CONFIG_LV_FONT_DEFAULT_UNSCII_8=y
+
+# disable the task watchdog
+CONFIG_ESP_TASK_WDT_EN=n
