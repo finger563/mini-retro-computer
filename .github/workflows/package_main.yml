@@ -38,7 +38,7 @@ jobs:
     - name: Upload Build Outputs
       uses: actions/upload-artifact@v4
       with:
-        name: build-artifacts
+        name: ${{ matrix.build.name}}-build-artifacts
         path: |
           build/*.bin
           build/*.elf
