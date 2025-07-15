@@ -52,6 +52,11 @@ public:
 
   void restart();
 
+  void set_label(const std::string &text);
+  void set_value(const std::string &text);
+
+  MatrixRain *get_matrix_rain() { return matrix_rain_.get(); }
+
 protected:
   enum class Mode { BOOT, TERMINAL, MATRIX_RAIN };
 

@@ -10,7 +10,7 @@ set(EXTRA_COMPONENT_DIRS
 
 set(
   COMPONENTS
-  "main esptool_py gui"
+  "main esptool_py gui jpeg"
   CACHE STRING
   "List of components to include"
   )

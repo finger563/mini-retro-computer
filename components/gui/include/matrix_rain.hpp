@@ -20,12 +20,18 @@ public:
     int min_drop_length = 6;          //< Min length of a drop in characters
     int max_drop_length = 16;         //< Max length of a drop in characters
     int update_interval_ms = 40;      //< Update interval in ms
-    int fade_duration_ms = 800;       //< Duration to fade a character in ms
+    int fade_duration_ms = 100;       //< Duration to fade a character in ms
     int head_mutate_interval_ms = 10; //< Interval to mutate the head of a drop in ms
-    int drop_spawn_interval_ms = 400; //< Interval to spawn a new drop in ms
-    int drop_spawn_chance = 10;       //< Chance to spawn a drop on a frame. 1/x (1 in x) chance.
+    int drop_spawn_interval_ms = 200; //< Interval to spawn a new drop in ms
+    int drop_spawn_chance = 5;        //< Chance to spawn a drop on a frame. 1/x (1 in x) chance.
     int min_speed_ms = 10;            //< Minimum speed of a drop in ms
-    int speed_range_ms = 50;          //< Range of speed variation in ms (max - min)
+    int speed_range_ms = 100;         //< Range of speed variation in ms (max - min)
+    int image_reveal_min_duration_ms = 3000;  //< Min duration to show the image in ms
+    int image_reveal_max_duration_ms = 5000;  //< Max duration to show the image in ms
+    int image_erase_duration_ms = 2000;       //< Duration of the erasing animation in ms
+    int image_reveal_min_interval_ms = 8000;  //< Min interval between image reveals in ms
+    int image_reveal_max_interval_ms = 15000; //< Max interval between image reveals in ms
+    int image_drop_speed_ms = 10;             //< Speed of static drops for image reveal
   };
 
   /// @brief Constructor for the MatrixRain effect.
@@ -53,8 +59,31 @@ public:
   /// @brief Sets a label / prompt to display behind the rain effect.
   /// @param text The text to display as a prompt.
   void set_prompt(const char *text); // Show a label behind the rain (optional)
+  /// @brief Sets an image to be rendered using the matrix rain effect.
+  /// Passing nullptr will disable image rendering mode and revert to random rain.
+  /// @param img Pointer to the LVGL image descriptor.
+  void set_image(const lv_img_dsc_t *img);
+
+  /// @brief Sets the minimum brightness for the image rendering mode.
+  /// This value is used to determine the minimum brightness of pixels in the image
+  /// that will be rendered. Pixels with brightness below this value will not be shown.
+  /// @param brightness The minimum brightness value (0-255).
+  /// Default is 0, meaning all pixels will be shown.
+  void set_min_image_brightness(uint8_t brightness) { min_image_brightness_ = brightness; }
+
+  /// @brief Prints the current image brightness map to the console for debugging.
+  void print_image_brightness_map();
+  /// @brief Shows a static label which represents the computed brightness map.
+  void debug_show_image();
 
 private:
+  enum class ImageRevealState {
+    NORMAL,    //< Standard random rain
+    CLEARING,  //< Stop spawning, let existing drops fall
+    REVEALING, //< Show the image with static drops
+    ERASING    //< Wash away the image with random drops
+  };
+
   struct CharCell {
     uint32_t codepoint{0};
     uint32_t fade_start_time{0};
@@ -69,6 +98,7 @@ private:
     uint32_t last_advance_time{0};
     bool active{true};
     int speed_ms{40};           // Per-drop speed in ms
+    bool is_image_drop{false};  //< True if this drop is for revealing the image
     std::deque<uint32_t> chars; // head at back, tail at front
   };
 
@@ -88,11 +118,22 @@ private:
   Config config_;
   uint32_t last_update_{0};
   uint32_t update_interval_{40};
+  bool image_mode_{false};
+  std::vector<uint8_t> image_brightness_map_;
+  uint8_t min_image_brightness_{0};
+  ImageRevealState image_state_{ImageRevealState::NORMAL};
+  uint32_t state_transition_time_{0};
 
-  void spawn_drop(Column &col, uint32_t now);
+  void spawn_drop(Column &col, uint32_t now, bool is_image_drop = false);
   void update_drop(Column &col, Drop &drop, uint32_t now);
   void update_fade(Column &col, uint32_t now);
   void update_row_labels(uint32_t now);
+  bool is_screen_clear();
+  void set_next_reveal_time();
+  void calculate_next_reveal_time();
+  void calculate_reveal_end_time();
+
   static uint32_t random_katakana();
   static void unicode_to_utf8(uint32_t unicode, char *utf8);
+  static uint8_t get_pixel_brightness(const lv_img_dsc_t *img, int x, int y);
 };

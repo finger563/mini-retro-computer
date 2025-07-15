@@ -151,6 +151,24 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 1.0.16
+  espp/file_system:
+    component_hash: eda2609589a8552f3dc0b37bb5229cc0067fe6947ade644e9e6e5f8ab545857b
+    dependencies:
+    - name: espp/base_component
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=1.0'
+    - name: idf
+      require: private
+      version: '>=5.0'
+    - name: joltwallet/littlefs
+      registry_url: https://components.espressif.com
+      require: private
+      version: 1.19.2
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.0.16
   espp/format:
     component_hash: 5cee4e9d6f9afca14fe040d2b6d31572b118669e9c981bbfe885b0bd7055b4d5
     dependencies:
@@ -393,10 +411,30 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.0.16
+  espressif/esp-dsp:
+    component_hash: 42dce32d46ac93dc11f60d368e29a830e9661c7345d794b8a45c343479cae636
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.2'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.7.0
   idf:
     source:
       type: idf
     version: 5.4.1
+  joltwallet/littlefs:
+    component_hash: e1dbe782be5aa58e879fe9f22bee60e5ff68acbfe3793d92a2e730c27374c787
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.19.2
   lvgl/lvgl:
     component_hash: b702d642e03e95928046d5c6726558e6444e112420c77efa5fdb6650b0a13c5d
     dependencies: []
@@ -408,10 +446,12 @@ direct_dependencies:
 - espp/base_component
 - espp/byte90
 - espp/display
+- espp/file_system
 - espp/task
 - espp/timer
 - espp/ws-s3-touch
+- espressif/esp-dsp
 - idf
-manifest_hash: 92ce4512af723d095d9be3666d2eac46cf9cdc0fbb8d8536ea384b01c29e1ca6
+manifest_hash: 93365d4403f53884299e21a9ad2c6b837c3950bbce02cc509d2d724e2158dfd2
 target: esp32s3
 version: 2.0.0

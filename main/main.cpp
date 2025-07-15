@@ -2,6 +2,7 @@
 #include <thread>
 
 #include "gui.hpp"
+#include "lvgl.h"
 
 #if CONFIG_MRP_HARDWARE_BYTE90
 #include "byte90.hpp"
@@ -16,10 +17,16 @@ using Bsp = espp::WsS3Touch;
     "Unsupported hardware configuration. Please select a valid hardware configuration in the menuconfig."
 #endif
 
+#include "file_system.hpp"
 #include "logger.hpp"
 #include "task.hpp"
 
+#include "jpeg.hpp"
+
+namespace fs = std::filesystem;
 using namespace std::chrono_literals;
+
+static Jpeg decoder;
 
 static std::recursive_mutex lvgl_mutex;
 
@@ -62,8 +69,33 @@ extern "C" void app_main(void) {
     return;
   }
 
+  // load the image file (smith.jpg) from the root of the littlefs partition
+  logger.info("Loading image from file system");
+  const fs::path file = espp::FileSystem::get().get_root_path() / "smith.jpg";
+
+  // ensure it exists
+  if (!fs::exists(file)) {
+    logger.error("File '{}' does not exist!", file.string());
+    return;
+  }
+
+  // load the file
+  decoder.decode(file.c_str());
+  // make the descriptor
+  lv_image_dsc_t img_desc;
+  memset(&img_desc, 0, sizeof(img_desc));
+  img_desc.header.cf = LV_COLOR_FORMAT_NATIVE;
+  img_desc.header.w = decoder.get_width();
+  img_desc.header.h = decoder.get_height();
+  img_desc.data_size = decoder.get_size();
+  img_desc.data = decoder.get_decoded_data();
+
   // now initialize the GUI
   Gui gui({});
+  if (auto mr = gui.get_matrix_rain()) {
+    mr->set_image(&img_desc);
+    mr->set_min_image_brightness(0);
+  }
 
   // initialize the button, which we'll use to cycle the rotation of the display
   logger.info("Initializing the button");

@@ -53,8 +53,8 @@ void Gui::init_ui() {
   rain_cfg.screen_height = screen_height;
   rain_cfg.char_width = matrix_char_width_;
   rain_cfg.char_height = matrix_char_height_;
-  rain_cfg.min_drop_length = 3;
-  rain_cfg.max_drop_length = 6;
+  rain_cfg.min_drop_length = 4;
+  rain_cfg.max_drop_length = 12;
   rain_cfg.update_interval_ms = 40;
   matrix_rain_ = std::make_unique<MatrixRain>(rain_cfg);
   matrix_rain_->set_font(&unscii_8_jp);
@@ -148,10 +148,11 @@ void Gui::update() {
           boot_->add_line(boot_anim.prefix);
         break;
       } else if (boot_anim.state == BootLineAnim::State::PAUSE_AFTER_COLON) {
-        if (now - boot_anim.last_update > 350) {
+        uint32_t delay = 350 + (rand() % 300 - 150.0f);
+        if (now - boot_anim.last_update > delay) {
           // Show full line
           if (boot_)
-            boot_->add_line(boot_anim.prefix + boot_anim.suffix);
+            boot_->update_last_line(boot_anim.prefix + boot_anim.suffix);
           boot_anim.state = BootLineAnim::State::DONE;
         } else {
           break;
@@ -166,11 +167,13 @@ void Gui::update() {
           last_boot_line_time_ = now;
           break;
         }
-        if (now - last_boot_line_time_ > boot_line_delay_ms_) {
+        static uint32_t next_boot_line_time = 0;
+        if (now > next_boot_line_time) {
           if (boot_)
             boot_->add_line(line);
           boot_line_index_++;
           last_boot_line_time_ = now;
+          next_boot_line_time = now + boot_line_delay_ms_ + (rand() % 200 - 100.0f);
         }
       }
     } else {
@@ -218,8 +221,10 @@ void Gui::update() {
     break;
   }
   case Mode::MATRIX_RAIN:
-    if (matrix_rain_)
+    if (matrix_rain_) {
       matrix_rain_->update();
+      // matrix_rain_->debug_show_image();
+    }
     break;
   }
 
