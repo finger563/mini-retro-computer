@@ -7,6 +7,8 @@ a little retro computer.
 
 ![image](https://github.com/user-attachments/assets/ff6183e9-9d7b-436b-8181-876472eb6c4a)
 
+https://github.com/user-attachments/assets/0414733a-e56d-4f49-b5bf-0bedd5e15845
+
 https://github.com/user-attachments/assets/a31ec884-594a-451a-a3d0-bb570fb42967
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
