@@ -332,6 +332,7 @@ void MatrixRain::spawn_drop(Column &col, uint32_t now, bool is_image_drop) {
   for (int i = 0; i < drop.length; ++i)
     drop.chars.push_back(random_katakana());
   col.drops.push_back(drop);
+  col.last_spawn_time = now;
 }
 
 void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {

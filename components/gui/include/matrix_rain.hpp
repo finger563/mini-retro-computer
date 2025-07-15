@@ -130,8 +130,6 @@ private:
   void update_row_labels(uint32_t now);
   bool is_screen_clear();
   void set_next_reveal_time();
-  void calculate_next_reveal_time();
-  void calculate_reveal_end_time();
 
   static uint32_t random_katakana();
   static void unicode_to_utf8(uint32_t unicode, char *utf8);
