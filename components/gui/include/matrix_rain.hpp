@@ -19,7 +19,6 @@ public:
     int char_height = 8;              //< Size of each character in pixels
     int min_drop_length = 6;          //< Min length of a drop in characters
     int max_drop_length = 16;         //< Max length of a drop in characters
-    int update_interval_ms = 40;      //< Update interval in ms
     int fade_duration_ms = 100;       //< Duration to fade a character in ms
     int head_mutate_interval_ms = 10; //< Interval to mutate the head of a drop in ms
     int drop_spawn_interval_ms = 200; //< Interval to spawn a new drop in ms
@@ -117,7 +116,6 @@ private:
   lv_obj_t *prompt_label_{nullptr};
   Config config_;
   uint32_t last_update_{0};
-  uint32_t update_interval_{40};
   bool image_mode_{false};
   std::vector<uint8_t> image_brightness_map_;
   uint8_t min_image_brightness_{0};
