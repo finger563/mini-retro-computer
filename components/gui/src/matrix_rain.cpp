@@ -6,8 +6,7 @@
 #include <fmt/core.h> // Added for fmt::format
 
 MatrixRain::MatrixRain(const Config &config)
-    : config_(config)
-    , update_interval_(config.update_interval_ms) {
+    : config_(config) {
   font_ = nullptr;
   set_next_reveal_time();
 }
@@ -287,7 +286,8 @@ void MatrixRain::update() {
     // Possibly spawn a new drop
     bool should_spawn =
         (image_state_ == ImageRevealState::NORMAL || image_state_ == ImageRevealState::ERASING);
-    if (should_spawn && now - col.last_spawn_time > (uint32_t)config_.drop_spawn_interval_ms) {
+    bool is_spawn_time = (now - col.last_spawn_time) > (uint32_t)config_.drop_spawn_interval_ms;
+    if (should_spawn && is_spawn_time) {
       // randomize drop frequency
       if (rand() % config_.drop_spawn_chance == 0) {
         spawn_drop(col, now);
@@ -337,14 +337,15 @@ void MatrixRain::spawn_drop(Column &col, uint32_t now, bool is_image_drop) {
 
 void MatrixRain::update_drop(Column &col, Drop &drop, uint32_t now) {
   // Mutate head character rapidly (but not for static image drops)
-  if (!drop.is_image_drop &&
-      now - drop.last_mutate_time > (uint32_t)config_.head_mutate_interval_ms) {
+  bool is_mutate_time = (now - drop.last_mutate_time) > (uint32_t)config_.head_mutate_interval_ms;
+  if (!drop.is_image_drop && is_mutate_time) {
     drop.chars.back() = random_katakana();
     drop.last_mutate_time = now;
   }
 
   // Advance head state if it's time
-  if (now - drop.last_advance_time > (uint32_t)drop.speed_ms) {
+  bool is_advance_time = (now - drop.last_advance_time) > (uint32_t)drop.speed_ms;
+  if (is_advance_time) {
     drop.head_row++;
     drop.last_advance_time = now;
 

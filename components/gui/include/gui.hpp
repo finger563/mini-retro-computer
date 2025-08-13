@@ -18,7 +18,7 @@ public:
     espp::Logger::Verbosity log_level{espp::Logger::Verbosity::WARN};
     uint32_t boot_line_delay_ms{250};
     uint32_t terminal_duration_ms{2000};
-    uint32_t matrix_rain_speed{1}; // Not used yet, but for future extension
+    uint32_t matrix_rain_speed{40}; ///< Update interval for matrix rain in ms
     uint32_t timer_interval_ms{30};
   };
 

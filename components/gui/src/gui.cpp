@@ -48,14 +48,18 @@ void Gui::init_ui() {
   terminal_->init(lv_screen_active());
   terminal_->set_visible(false);
   // MatrixRain
+  auto num_rows = screen_height / matrix_char_height_;
   MatrixRain::Config rain_cfg;
   rain_cfg.screen_width = screen_width;
   rain_cfg.screen_height = screen_height;
   rain_cfg.char_width = matrix_char_width_;
   rain_cfg.char_height = matrix_char_height_;
-  rain_cfg.min_drop_length = 4;
-  rain_cfg.max_drop_length = 12;
-  rain_cfg.update_interval_ms = 40;
+  rain_cfg.drop_spawn_chance = std::max<int>(300 / num_rows, 20); // larger number = less chance
+  rain_cfg.min_drop_length = num_rows / 8;
+  rain_cfg.max_drop_length = num_rows / 3;
+  rain_cfg.min_speed_ms = std::max<int>(750 / num_rows, 50);
+  rain_cfg.speed_range_ms = std::max<int>(2000 / num_rows, 100) - rain_cfg.min_speed_ms;
+  rain_cfg.image_drop_speed_ms = std::max<int>(500 / num_rows, 25);
   matrix_rain_ = std::make_unique<MatrixRain>(rain_cfg);
   matrix_rain_->set_font(&unscii_8_jp);
   matrix_rain_->init(lv_screen_active());
