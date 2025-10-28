@@ -161,7 +161,7 @@ void MatrixRain::init(lv_obj_t *parent) {
   lv_obj_set_scrollbar_mode(parent_, LV_SCROLLBAR_MODE_OFF);
 
   // Use the font's line height for layout, not the configured char_height
-  const lv_font_t *font = font_ ? font_ : lv_obj_get_style_text_font(parent_, 0);
+  const lv_font_t *font = font_ ? font_ : lv_obj_get_style_text_font(parent_, LV_PART_MAIN);
   int font_line_height = lv_font_get_line_height(font);
   if (font_line_height <= 0) {
     font_line_height = config_.char_height; // Fallback
